@@ -1,5 +1,5 @@
 ﻿
-namespace NoFences
+namespace 窗格
 {
     partial class HeightDialog
     {

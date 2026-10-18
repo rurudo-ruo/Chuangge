@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace NoFences
+namespace 窗格
 {
     public partial class HeightDialog : Form
     {

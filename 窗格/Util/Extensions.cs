@@ -1,6 +1,6 @@
 ﻿using System.Drawing;
 
-namespace NoFences.Util
+namespace 窗格.Util
 {
     public static class Extensions
     {

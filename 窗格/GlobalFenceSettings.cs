@@ -1,7 +1,7 @@
 using System;
-using NoFences.Properties;
+using 窗格.Properties;
 
-namespace NoFences
+namespace 窗格
 {
     internal static class GlobalFenceSettings
     {

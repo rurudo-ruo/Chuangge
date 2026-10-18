@@ -1,4 +1,4 @@
-using NoFences.Model;
+using 窗格.Model;
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 
-namespace NoFences
+namespace 窗格
 {
     internal sealed class AdvancedSettingsForm : Form
     {
@@ -16,7 +16,7 @@ namespace NoFences
 
         public AdvancedSettingsForm()
         {
-            Text = "NoFences - Advanced settings";
+            Text = "窗格 - Advanced settings";
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.Sizable;
             MaximizeBox = false;

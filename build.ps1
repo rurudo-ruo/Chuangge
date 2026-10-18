@@ -1,4 +1,4 @@
-$solutionPath = Join-Path $PSScriptRoot 'NoFences.sln'
+﻿$solutionPath = Join-Path $PSScriptRoot '窗格.sln'
 $targetingPackPaths = @(
     (Join-Path ${env:ProgramFiles(x86)} 'Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8'),
     (Join-Path $env:ProgramFiles 'Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8')
@@ -32,7 +32,7 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-$exePath = Join-Path $PSScriptRoot 'NoFences\bin\Release\NoFences.exe'
+$exePath = Join-Path $PSScriptRoot '窗格\bin\Release\窗格.exe'
 
 if (-not (Test-Path $exePath)) {
     Write-Error "Build reported success, but the expected executable was not found: $exePath"

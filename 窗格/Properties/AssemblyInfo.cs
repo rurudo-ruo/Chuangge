@@ -5,12 +5,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("NoFences")]
-[assembly: AssemblyDescription("Open Source Alternative to 'Stardock Fences'")]
+[assembly: AssemblyTitle("窗格")]
+[assembly: AssemblyDescription("Personal fork of Twometer's NoFences, maintained by rurudo")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("NoFences")]
-[assembly: AssemblyCopyright("Copyright © Twometer 2021")]
+[assembly: AssemblyCompany("rurudo")]
+[assembly: AssemblyProduct("窗格")]
+[assembly: AssemblyCopyright("Copyright © 2021 Twometer; modifications © 2026 rurudo")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

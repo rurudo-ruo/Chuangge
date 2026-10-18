@@ -7,7 +7,7 @@ using System.Web.Script.Serialization;
 using System.Xml;
 using System.Xml.Serialization;
 
-namespace NoFences.Model
+namespace 窗格.Model
 {
     public class FenceManager
     {

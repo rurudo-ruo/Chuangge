@@ -6,8 +6,8 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{9B7EC27E-0066-4455-987C-6DC88C4BEE54}</ProjectGuid>
     <OutputType>WinExe</OutputType>
-    <RootNamespace>NoFences</RootNamespace>
-    <AssemblyName>NoFences</AssemblyName>
+    <RootNamespace>窗格</RootNamespace>
+    <AssemblyName>窗格</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -37,7 +37,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
   <PropertyGroup>
-    <StartupObject>NoFences.Program</StartupObject>
+    <StartupObject>窗格.Program</StartupObject>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />

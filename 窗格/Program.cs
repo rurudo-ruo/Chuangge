@@ -1,10 +1,10 @@
-﻿using NoFences.Model;
+﻿using 窗格.Model;
 using System;
 using System.Threading;
 using System.Windows.Forms;
-using NoFences.Win32;
+using 窗格.Win32;
 
-namespace NoFences
+namespace 窗格
 {
     static class Program
     {
@@ -47,7 +47,7 @@ namespace NoFences
                             }
 
                             var message = string.Join(Environment.NewLine + Environment.NewLine, messages);
-                            MessageBox.Show(message, "NoFences", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            MessageBox.Show(message, "窗格", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         }
 
                         Application.Run();

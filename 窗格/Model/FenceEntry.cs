@@ -3,10 +3,10 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using System;
 using System.IO;
-using NoFences.Win32;
-using NoFences.Util;
+using 窗格.Win32;
+using 窗格.Util;
 
-namespace NoFences.Model
+namespace 窗格.Model
 {
     public class FenceEntry
     {

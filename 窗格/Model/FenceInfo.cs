@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace NoFences.Model
+namespace 窗格.Model
 {
     public class FenceInfo
     {

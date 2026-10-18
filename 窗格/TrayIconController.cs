@@ -1,9 +1,9 @@
-using NoFences.Model;
+using 窗格.Model;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
 
-namespace NoFences
+namespace 窗格
 {
     internal sealed class TrayIconController : IDisposable
     {
@@ -22,7 +22,7 @@ namespace NoFences
             {
                 ContextMenuStrip = contextMenu,
                 Icon = SystemIcons.Application,
-                Text = "NoFences",
+                Text = "窗格",
                 Visible = true
             };
             notifyIcon.DoubleClick += AdvancedSettings_Click;

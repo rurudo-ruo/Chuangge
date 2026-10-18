@@ -1,12 +1,12 @@
-# NoFences
+# 窗格
 
-Didn't want to pay 11€, made my own.
+A personal fork of [Twometer's NoFences](https://github.com/Twometer/NoFences), developed and maintained by **rurudo**. Licensed under the MIT License; see [LICENSE](LICENSE). The original copyright and license terms are retained.
 
-![Screenshot](screenshot.png "NoFences in action")
+![Screenshot](screenshot.png "窗格 in action")
 
 ## Build
 
-NoFences is a 64-bit Windows Forms application targeting **.NET Framework 4.8**.
+窗格 is a 64-bit Windows Forms application targeting **.NET Framework 4.8**.
 
 ### Prerequisites
 
@@ -28,7 +28,9 @@ The script checks for MSBuild and the .NET Framework 4.8 targeting pack before b
 powershell -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
-The Release executable is created at `NoFences\bin\Release\NoFences.exe`.
+The Release executable is created at `窗格\bin\Release\窗格.exe`.
+
+The application retains the existing `%LOCALAPPDATA%\NoFences` fence-data directory so upgrading this fork continues to use your saved fence layouts and contents.
 
 ### Run
 
@@ -40,7 +42,7 @@ The app opts into Per-Monitor V2 DPI awareness. Fence contents, resize hit areas
 
 ## System tray
 
-NoFences provides a notification-area icon with **New fence**, **Advanced settings**, and **Exit** actions. Double-click the icon to open Advanced settings. The settings window includes global display controls and the fence data folder; existing fence-specific options remain in each fence's right-click menu.
+窗格 provides a notification-area icon with **New fence**, **Advanced settings**, and **Exit** actions. Double-click the icon to open Advanced settings. The settings window includes global display controls and the fence data folder; existing fence-specific options remain in each fence's right-click menu.
 
 ## Global appearance settings
 
@@ -48,7 +50,7 @@ Open **Advanced settings** from the tray menu to change the global title size (1
 
 ## Fence data recovery
 
-NoFences loads its original XML fence metadata as well as JSON fence data stored in the newer `Fences\<id>\fence.json` layout and XML metadata in `Backup_XML_*` folders. Alternate-format sources are read without being changed. If a saved file or folder path no longer exists, the item remains visible with a warning icon and a “(missing)” label instead of disappearing from its fence. Right-click the missing item to locate a replacement file or folder, remove the item from the fence, or open its containing folder when that folder still exists.
+窗格 loads its original XML fence metadata as well as JSON fence data stored in the newer `Fences\<id>\fence.json` layout and XML metadata in `Backup_XML_*` folders. Alternate-format sources are read without being changed. If a saved file or folder path no longer exists, the item remains visible with a warning icon and a “(missing)” label instead of disappearing from its fence. Right-click the missing item to locate a replacement file or folder, remove the item from the fence, or open its containing folder when that folder still exists.
 
 Removing a fence deletes its saved metadata in the XML and JSON locations and matching recovery-backup records, preventing deleted fences from being restored from an older copy at the next startup.
 

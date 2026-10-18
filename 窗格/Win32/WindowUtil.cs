@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace NoFences.Win32
+namespace 窗格.Win32
 {
     public class WindowUtil
     {

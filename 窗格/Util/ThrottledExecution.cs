@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 
-namespace NoFences.Util
+namespace 窗格.Util
 {
     public class ThrottledExecution
     {

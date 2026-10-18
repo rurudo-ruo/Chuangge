@@ -1,6 +1,6 @@
-using NoFences.Model;
-using NoFences.Util;
-using NoFences.Win32;
+using 窗格.Model;
+using 窗格.Util;
+using 窗格.Win32;
 using Peter;
 using System;
 using System.ComponentModel;
@@ -8,9 +8,9 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
-using static NoFences.Win32.WindowUtil;
+using static 窗格.Win32.WindowUtil;
 
-namespace NoFences
+namespace 窗格
 {
     public partial class FenceWindow : Form
     {
@@ -242,12 +242,12 @@ namespace NoFences
                 }
                 catch (IOException ex)
                 {
-                    MessageBox.Show(this, "Could not remove all saved copies of this fence. It may reappear when NoFences starts again." +
+                    MessageBox.Show(this, "Could not remove all saved copies of this fence. It may reappear when 窗格 starts again." +
                         Environment.NewLine + ex.Message, "Fence could not be removed", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 catch (UnauthorizedAccessException ex)
                 {
-                    MessageBox.Show(this, "Could not remove all saved copies of this fence. It may reappear when NoFences starts again." +
+                    MessageBox.Show(this, "Could not remove all saved copies of this fence. It may reappear when 窗格 starts again." +
                         Environment.NewLine + ex.Message, "Fence could not be removed", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
