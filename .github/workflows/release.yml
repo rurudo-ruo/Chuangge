@@ -14,14 +14,27 @@ jobs:
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
-
-      - name: Set up MSBuild
-        uses: microsoft/setup-msbuild@v2
+        uses: actions/checkout@v5
 
       - name: Build Release
         shell: powershell
-        run: msbuild .\窗格.sln /m /t:Rebuild /p:Configuration=Release '/p:Platform=Any CPU'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          if (-not (Test-Path $vswhere)) {
+            throw 'Visual Studio Installer vswhere.exe was not found on the runner.'
+          }
+
+          $msbuildPath = & $vswhere -latest -products '*' -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' |
+            Select-Object -First 1
+          if (-not $msbuildPath) {
+            throw 'MSBuild was not found on the runner.'
+          }
+
+          & $msbuildPath .\窗格.sln /m /t:Rebuild /p:Configuration=Release '/p:Platform=Any CPU'
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
 
       - name: Prepare release assets
         shell: powershell
