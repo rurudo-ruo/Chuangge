@@ -24,6 +24,8 @@ namespace NoFences.Model
 
         private readonly string basePath;
 
+        public string DataDirectory => basePath;
+
         public sealed class FenceLoadResult
         {
             public List<string> SkippedPaths { get; } = new List<string>();

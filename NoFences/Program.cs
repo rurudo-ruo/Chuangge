@@ -25,30 +25,33 @@ namespace NoFences
                     Application.EnableVisualStyles();
                     Application.SetCompatibleTextRenderingDefault(false);
 
-                    var loadResult = FenceManager.Instance.LoadFences();
-                    if (Application.OpenForms.Count == 0)
-                        FenceManager.Instance.CreateFence("First fence");
-
-                    if (loadResult.LoadedFromJson > 0 || loadResult.LoadedFromBackup > 0 || loadResult.SkippedPaths.Count > 0)
+                    using (var trayIcon = new TrayIconController())
                     {
-                        var messages = new System.Collections.Generic.List<string>();
-                        if (loadResult.LoadedFromJson > 0 || loadResult.LoadedFromBackup > 0)
+                        var loadResult = FenceManager.Instance.LoadFences();
+                        if (Application.OpenForms.Count == 0)
+                            FenceManager.Instance.CreateFence("First fence");
+
+                        if (loadResult.LoadedFromJson > 0 || loadResult.LoadedFromBackup > 0 || loadResult.SkippedPaths.Count > 0)
                         {
-                            messages.Add("Loaded " + loadResult.LoadedFromJson + " fence(s) from JSON storage and "
-                                + loadResult.LoadedFromBackup + " fence(s) from XML backups. Original source files were left untouched.");
+                            var messages = new System.Collections.Generic.List<string>();
+                            if (loadResult.LoadedFromJson > 0 || loadResult.LoadedFromBackup > 0)
+                            {
+                                messages.Add("Loaded " + loadResult.LoadedFromJson + " fence(s) from JSON storage and "
+                                    + loadResult.LoadedFromBackup + " fence(s) from XML backups. Original source files were left untouched.");
+                            }
+
+                            if (loadResult.SkippedPaths.Count > 0)
+                            {
+                                messages.Add("Some fence data could not be loaded from these paths:"
+                                    + Environment.NewLine + string.Join(Environment.NewLine, loadResult.SkippedPaths));
+                            }
+
+                            var message = string.Join(Environment.NewLine + Environment.NewLine, messages);
+                            MessageBox.Show(message, "NoFences", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         }
 
-                        if (loadResult.SkippedPaths.Count > 0)
-                        {
-                            messages.Add("Some fence data could not be loaded from these paths:"
-                                + Environment.NewLine + string.Join(Environment.NewLine, loadResult.SkippedPaths));
-                        }
-
-                        var message = string.Join(Environment.NewLine + Environment.NewLine, messages);
-                        MessageBox.Show(message, "NoFences", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        Application.Run();
                     }
-
-                    Application.Run();
                 }
             }
         }
