@@ -25,9 +25,17 @@ namespace NoFences
                     Application.EnableVisualStyles();
                     Application.SetCompatibleTextRenderingDefault(false);
 
-                    FenceManager.Instance.LoadFences();
+                    var skippedFolders = FenceManager.Instance.LoadFences();
                     if (Application.OpenForms.Count == 0)
                         FenceManager.Instance.CreateFence("First fence");
+
+                    if (skippedFolders.Count > 0)
+                    {
+                        var message = "Some saved fences could not be loaded. These folders were skipped and have not been changed:"
+                            + Environment.NewLine + Environment.NewLine
+                            + string.Join(Environment.NewLine, skippedFolders);
+                        MessageBox.Show(message, "NoFences", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
 
                     Application.Run();
                 }

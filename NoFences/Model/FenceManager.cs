@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Xml;
 using System.Xml.Serialization;
 
 namespace NoFences.Model
@@ -18,18 +20,57 @@ namespace NoFences.Model
             EnsureDirectoryExists(basePath);
         }
 
-        public void LoadFences()
+        public List<string> LoadFences()
         {
+            var skippedFolders = new List<string>();
+
             foreach (var dir in Directory.EnumerateDirectories(basePath))
             {
                 var metaFile = Path.Combine(dir, MetaFileName);
-                var serializer = new XmlSerializer(typeof(FenceInfo));
-                var reader = new StreamReader(metaFile);
-                var fence = serializer.Deserialize(reader) as FenceInfo;
-                reader.Close();
+                FenceInfo fence;
+
+                try
+                {
+                    if (!File.Exists(metaFile))
+                    {
+                        skippedFolders.Add(dir);
+                        continue;
+                    }
+
+                    var serializer = new XmlSerializer(typeof(FenceInfo));
+                    using (var reader = new StreamReader(metaFile))
+                    {
+                        fence = serializer.Deserialize(reader) as FenceInfo;
+                    }
+
+                    if (fence == null || string.IsNullOrWhiteSpace(fence.Name) || fence.Files == null)
+                        throw new InvalidOperationException("Fence metadata is incomplete.");
+                }
+                catch (IOException)
+                {
+                    skippedFolders.Add(dir);
+                    continue;
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    skippedFolders.Add(dir);
+                    continue;
+                }
+                catch (InvalidOperationException)
+                {
+                    skippedFolders.Add(dir);
+                    continue;
+                }
+                catch (XmlException)
+                {
+                    skippedFolders.Add(dir);
+                    continue;
+                }
 
                 new FenceWindow(fence).Show();
             }
+
+            return skippedFolders;
         }
 
         public void CreateFence(string name)
