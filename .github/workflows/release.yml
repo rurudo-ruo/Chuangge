@@ -31,7 +31,13 @@ jobs:
             throw 'MSBuild was not found on the runner.'
           }
 
-          & $msbuildPath .\窗格.sln /m /t:Rebuild /p:Configuration=Release '/p:Platform=Any CPU'
+          $appName = [string][char]0x7A97 + [string][char]0x683C
+          $solutionPath = Join-Path $env:GITHUB_WORKSPACE "$appName.sln"
+          if (-not (Test-Path $solutionPath)) {
+            throw "Solution file was not found: $solutionPath"
+          }
+
+          & $msbuildPath $solutionPath /m /t:Rebuild /p:Configuration=Release '/p:Platform=Any CPU'
           if ($LASTEXITCODE -ne 0) {
             exit $LASTEXITCODE
           }
@@ -40,13 +46,14 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $outputDirectory = Join-Path $env:GITHUB_WORKSPACE '窗格\bin\Release'
+          $appName = [string][char]0x7A97 + [string][char]0x683C
+          $outputDirectory = Join-Path $env:GITHUB_WORKSPACE "$appName\bin\Release"
           $releaseDirectory = Join-Path $env:GITHUB_WORKSPACE 'release-assets'
-          $packageDirectory = Join-Path $env:RUNNER_TEMP '窗格-release-package'
+          $packageDirectory = Join-Path $env:RUNNER_TEMP "$appName-release-package"
           $version = $env:GITHUB_REF_NAME
 
-          $executable = Join-Path $outputDirectory '窗格.exe'
-          $configuration = Join-Path $outputDirectory '窗格.exe.config'
+          $executable = Join-Path $outputDirectory "$appName.exe"
+          $configuration = Join-Path $outputDirectory "$appName.exe.config"
           if (-not (Test-Path $executable)) {
             throw "Expected executable was not produced: $executable"
           }
@@ -54,21 +61,21 @@ jobs:
             throw "Expected application configuration was not produced: $configuration"
           }
           foreach ($culture in @('cs', 'zh-CN')) {
-            if (-not (Test-Path (Join-Path $outputDirectory "$culture\窗格.resources.dll"))) {
+            if (-not (Test-Path (Join-Path $outputDirectory "$culture\$appName.resources.dll"))) {
               throw "Expected $culture resource assembly was not produced."
             }
           }
 
           New-Item -ItemType Directory -Path $releaseDirectory -Force | Out-Null
           New-Item -ItemType Directory -Path $packageDirectory -Force | Out-Null
-          Copy-Item $executable (Join-Path $releaseDirectory "窗格-$version.exe")
+          Copy-Item $executable (Join-Path $releaseDirectory "$appName-$version.exe")
           Copy-Item $executable, $configuration -Destination $packageDirectory
           Copy-Item (Join-Path $outputDirectory 'cs') -Destination $packageDirectory -Recurse
           Copy-Item (Join-Path $outputDirectory 'zh-CN') -Destination $packageDirectory -Recurse
           Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'README.md'), (Join-Path $env:GITHUB_WORKSPACE 'LICENSE'), (Join-Path $env:GITHUB_WORKSPACE 'screenshot.png') -Destination $packageDirectory
 
           Compress-Archive -Path (Join-Path $packageDirectory '*') `
-            -DestinationPath (Join-Path $releaseDirectory "窗格-$version-windows-x64.zip") `
+            -DestinationPath (Join-Path $releaseDirectory "$appName-$version-windows-x64.zip") `
             -CompressionLevel Optimal
 
       - name: Publish GitHub release
