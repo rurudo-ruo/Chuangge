@@ -50,29 +50,26 @@ jobs:
           $outputDirectory = Join-Path $env:GITHUB_WORKSPACE "$appName\bin\Release"
           $releaseDirectory = Join-Path $env:GITHUB_WORKSPACE 'release-assets'
           $packageDirectory = Join-Path $env:RUNNER_TEMP "$appName-release-package"
+          $installerPath = Join-Path $env:RUNNER_TEMP 'ndp48-web.exe'
           $version = $env:GITHUB_REF_NAME
 
           $executable = Join-Path $outputDirectory "$appName.exe"
-          $configuration = Join-Path $outputDirectory "$appName.exe.config"
           if (-not (Test-Path $executable)) {
             throw "Expected executable was not produced: $executable"
           }
-          if (-not (Test-Path $configuration)) {
-            throw "Expected application configuration was not produced: $configuration"
-          }
-          foreach ($culture in @('cs', 'zh-CN')) {
-            if (-not (Test-Path (Join-Path $outputDirectory "$culture\$appName.resources.dll"))) {
-              throw "Expected $culture resource assembly was not produced."
-            }
+
+          Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/?LinkId=2085155' `
+            -OutFile $installerPath -UseBasicParsing
+          $installerSignature = Get-AuthenticodeSignature -FilePath $installerPath
+          if ($installerSignature.Status -ne 'Valid' -or
+              $installerSignature.SignerCertificate.Subject -notmatch 'Microsoft Corporation') {
+            throw 'The downloaded .NET Framework installer does not have a valid Microsoft signature.'
           }
 
           New-Item -ItemType Directory -Path $releaseDirectory -Force | Out-Null
           New-Item -ItemType Directory -Path $packageDirectory -Force | Out-Null
           Copy-Item $executable (Join-Path $releaseDirectory "$appName-$version.exe")
-          Copy-Item $executable, $configuration -Destination $packageDirectory
-          Copy-Item (Join-Path $outputDirectory 'cs') -Destination $packageDirectory -Recurse
-          Copy-Item (Join-Path $outputDirectory 'zh-CN') -Destination $packageDirectory -Recurse
-          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'README.md'), (Join-Path $env:GITHUB_WORKSPACE 'LICENSE'), (Join-Path $env:GITHUB_WORKSPACE 'screenshot.png') -Destination $packageDirectory
+          Copy-Item $executable, $installerPath -Destination $packageDirectory
 
           Compress-Archive -Path (Join-Path $packageDirectory '*') `
             -DestinationPath (Join-Path $releaseDirectory "$appName-$version-windows-x64.zip") `

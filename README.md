@@ -31,7 +31,7 @@ If an item is missing, it stays visible with a warning icon and a â€œ(missing)â€
 
 ## Downloads
 
-GitHub releases provide an EXE-only download and a ZIP package with the application configuration and localized resources. Both require the **.NET Framework 4.8 runtime** on Windows; the EXE-only download is not self-contained.
+GitHub releases provide an EXE-only download and a ZIP containing the app EXE and Microsoft's .NET Framework 4.8 web installer. The EXE-only download requires the runtime to already be installed. In the ZIP, run `ndp48-web.exe` first if .NET Framework 4.8 is missing, then run the app. The web installer downloads runtime components from Microsoft and requires an internet connection; it is not an offline runtime bundle.
 
 ## Build and development
 
