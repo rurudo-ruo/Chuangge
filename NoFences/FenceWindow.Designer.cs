@@ -125,12 +125,16 @@
             this.Click += new System.EventHandler(this.FenceWindow_Click);
             this.DragDrop += new System.Windows.Forms.DragEventHandler(this.FenceWindow_DragDrop);
             this.DragEnter += new System.Windows.Forms.DragEventHandler(this.FenceWindow_DragEnter);
+            this.DragOver += new System.Windows.Forms.DragEventHandler(this.FenceWindow_DragOver);
+            this.DragLeave += new System.EventHandler(this.FenceWindow_DragLeave);
             this.Paint += new System.Windows.Forms.PaintEventHandler(this.FenceWindow_Paint);
             this.DoubleClick += new System.EventHandler(this.FenceWindow_DoubleClick);
             this.MouseClick += new System.Windows.Forms.MouseEventHandler(this.FenceWindow_MouseClick);
+            this.MouseDown += new System.Windows.Forms.MouseEventHandler(this.FenceWindow_MouseDown);
             this.MouseEnter += new System.EventHandler(this.FenceWindow_MouseEnter);
             this.MouseLeave += new System.EventHandler(this.FenceWindow_MouseLeave);
             this.MouseMove += new System.Windows.Forms.MouseEventHandler(this.FenceWindow_MouseMove);
+            this.MouseUp += new System.Windows.Forms.MouseEventHandler(this.FenceWindow_MouseUp);
             this.Resize += new System.EventHandler(this.FenceWindow_Resize);
             this.appContextMenu.ResumeLayout(false);
             this.ResumeLayout(false);
@@ -150,4 +154,3 @@
         private System.Windows.Forms.ToolStripMenuItem titleSizeToolStripMenuItem;
     }
 }
-

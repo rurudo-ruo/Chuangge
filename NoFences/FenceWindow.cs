@@ -1,4 +1,4 @@
-﻿using NoFences.Model;
+using NoFences.Model;
 using NoFences.Util;
 using NoFences.Win32;
 using Peter;
@@ -35,6 +35,12 @@ namespace NoFences
         private bool hasHoverUpdated;
         private bool isMinified;
         private int prevHeight;
+        private Point thumbnailMouseDown;
+        private string thumbnailDragPath;
+        private int thumbnailDragIndex = -1;
+        private bool isDraggingThumbnail;
+        private bool suppressNextClick;
+        private int dragInsertionIndex = -1;
 
         private int scrollHeight;
         private int scrollOffset;
@@ -50,6 +56,13 @@ namespace NoFences
         private readonly ToolStripMenuItem openMissingParentItem = new ToolStripMenuItem("Open containing folder");
         private readonly ToolStripSeparator missingItemSeparator = new ToolStripSeparator();
         private string removeItemText;
+
+        private sealed class FenceItemDragData
+        {
+            public FenceWindow Source { get; set; }
+            public string Path { get; set; }
+            public int Index { get; set; }
+        }
 
         private void ReloadFonts()
         {
@@ -218,10 +231,25 @@ namespace NoFences
 
         private void exitToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (MessageBox.Show(this, "Really remove this fence?", "Remove", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            if (MessageBox.Show(this,
+                "Really remove this fence and its saved copies, including recovery backups?",
+                "Remove fence", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
-                FenceManager.Instance.RemoveFence(fenceInfo);
-                Close();
+                try
+                {
+                    FenceManager.Instance.RemoveFence(fenceInfo);
+                    Close();
+                }
+                catch (IOException ex)
+                {
+                    MessageBox.Show(this, "Could not remove all saved copies of this fence. It may reappear when NoFences starts again." +
+                        Environment.NewLine + ex.Message, "Fence could not be removed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    MessageBox.Show(this, "Could not remove all saved copies of this fence. It may reappear when NoFences starts again." +
+                        Environment.NewLine + ex.Message, "Fence could not be removed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
         }
 
@@ -247,18 +275,280 @@ namespace NoFences
 
         private void FenceWindow_DragEnter(object sender, DragEventArgs e)
         {
-            if (e.Data.GetDataPresent(DataFormats.FileDrop) && !lockedToolStripMenuItem.Checked)
+            if (lockedToolStripMenuItem.Checked)
+                return;
+
+            if (e.Data.GetDataPresent(typeof(FenceItemDragData)))
                 e.Effect = DragDropEffects.Move;
+            else if (e.Data.GetDataPresent(DataFormats.FileDrop))
+                e.Effect = DragDropEffects.Copy;
+        }
+
+        private void FenceWindow_DragOver(object sender, DragEventArgs e)
+        {
+            if (lockedToolStripMenuItem.Checked)
+            {
+                e.Effect = DragDropEffects.None;
+                ClearDragInsertionMarker();
+                return;
+            }
+
+            if (e.Data.GetDataPresent(typeof(FenceItemDragData)))
+            {
+                e.Effect = DragDropEffects.Move;
+                dragInsertionIndex = GetDropInsertionIndex(PointToClient(new Point(e.X, e.Y)));
+                Invalidate();
+            }
+            else if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                e.Effect = DragDropEffects.Copy;
+            }
+        }
+
+        private void FenceWindow_DragLeave(object sender, EventArgs e)
+        {
+            ClearDragInsertionMarker();
         }
 
         private void FenceWindow_DragDrop(object sender, DragEventArgs e)
         {
-            var dropped = (string[])e.Data.GetData(DataFormats.FileDrop);
-            foreach (var file in dropped)
-                if (!fenceInfo.Files.Contains(file) && ItemExists(file))
+            try
+            {
+                if (lockedToolStripMenuItem.Checked)
+                    return;
+
+                var itemDrag = e.Data.GetData(typeof(FenceItemDragData)) as FenceItemDragData;
+                if (itemDrag != null)
+                {
+                    MoveFenceItem(itemDrag, GetDropInsertionIndex(PointToClient(new Point(e.X, e.Y))));
+                    return;
+                }
+
+                var dropped = e.Data.GetData(DataFormats.FileDrop) as string[];
+                if (dropped == null)
+                    return;
+
+                var addedPaths = new System.Collections.Generic.List<string>();
+                foreach (var file in dropped)
+                {
+                    if (!ItemExists(file) || fenceInfo.Files.Exists(path =>
+                        string.Equals(path, file, StringComparison.OrdinalIgnoreCase)))
+                        continue;
+
                     fenceInfo.Files.Add(file);
-            Save();
-            Refresh();
+                    addedPaths.Add(file);
+                }
+
+                if (addedPaths.Count > 0)
+                {
+                    try
+                    {
+                        Save();
+                    }
+                    catch (IOException ex)
+                    {
+                        RemoveDroppedItems(addedPaths);
+                        MessageBox.Show(this, ex.Message, "Could not save fence items", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                    catch (UnauthorizedAccessException ex)
+                    {
+                        RemoveDroppedItems(addedPaths);
+                        MessageBox.Show(this, ex.Message, "Could not save fence items", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        RemoveDroppedItems(addedPaths);
+                        MessageBox.Show(this, ex.Message, "Could not save fence items", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
+            finally
+            {
+                ClearDragInsertionMarker();
+                Invalidate();
+            }
+        }
+
+        private void RemoveDroppedItems(System.Collections.Generic.List<string> paths)
+        {
+            foreach (var path in paths)
+                fenceInfo.Files.Remove(path);
+        }
+
+        private void MoveFenceItem(FenceItemDragData dragData, int insertionIndex)
+        {
+            var source = dragData.Source;
+            var sourceIndex = dragData.Index >= 0 && dragData.Index < source.fenceInfo.Files.Count
+                && string.Equals(source.fenceInfo.Files[dragData.Index], dragData.Path, StringComparison.OrdinalIgnoreCase)
+                ? dragData.Index
+                : source.fenceInfo.Files.FindIndex(path =>
+                    string.Equals(path, dragData.Path, StringComparison.OrdinalIgnoreCase));
+            if (sourceIndex < 0)
+                return;
+
+            insertionIndex = Math.Max(0, Math.Min(insertionIndex, fenceInfo.Files.Count));
+            if (source == this)
+            {
+                var originalFiles = new System.Collections.Generic.List<string>(fenceInfo.Files);
+                var targetIndex = insertionIndex;
+                if (sourceIndex < targetIndex)
+                    targetIndex--;
+
+                if (sourceIndex == targetIndex)
+                    return;
+
+                var path = fenceInfo.Files[sourceIndex];
+                fenceInfo.Files.RemoveAt(sourceIndex);
+                fenceInfo.Files.Insert(Math.Max(0, Math.Min(targetIndex, fenceInfo.Files.Count)), path);
+                try
+                {
+                    Save();
+                    selectedItem = path;
+                }
+                catch (IOException ex)
+                {
+                    RestoreFileOrder(originalFiles);
+                    ShowItemSaveError(ex);
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    RestoreFileOrder(originalFiles);
+                    ShowItemSaveError(ex);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    RestoreFileOrder(originalFiles);
+                    ShowItemSaveError(ex);
+                }
+
+                Invalidate();
+                return;
+            }
+
+            if (fenceInfo.Files.Exists(path =>
+                string.Equals(path, dragData.Path, StringComparison.OrdinalIgnoreCase)))
+                return;
+
+            var originalSourceIndex = sourceIndex;
+            fenceInfo.Files.Insert(insertionIndex, dragData.Path);
+            try
+            {
+                Save();
+            }
+            catch (IOException ex)
+            {
+                fenceInfo.Files.RemoveAt(insertionIndex);
+                ShowItemSaveError(ex);
+                return;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                fenceInfo.Files.RemoveAt(insertionIndex);
+                ShowItemSaveError(ex);
+                return;
+            }
+            catch (InvalidOperationException ex)
+            {
+                fenceInfo.Files.RemoveAt(insertionIndex);
+                ShowItemSaveError(ex);
+                return;
+            }
+
+            source.fenceInfo.Files.RemoveAt(originalSourceIndex);
+            try
+            {
+                source.Save();
+            }
+            catch (IOException ex)
+            {
+                RollBackCrossFenceMove(source, originalSourceIndex, dragData.Path);
+                ShowItemSaveError(ex);
+                return;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                RollBackCrossFenceMove(source, originalSourceIndex, dragData.Path);
+                ShowItemSaveError(ex);
+                return;
+            }
+            catch (InvalidOperationException ex)
+            {
+                RollBackCrossFenceMove(source, originalSourceIndex, dragData.Path);
+                ShowItemSaveError(ex);
+                return;
+            }
+
+            selectedItem = dragData.Path;
+            source.selectedItem = null;
+            source.Invalidate();
+        }
+
+        private void RollBackCrossFenceMove(FenceWindow source, int sourceIndex, string path)
+        {
+            source.fenceInfo.Files.Insert(sourceIndex, path);
+            try
+            {
+                source.Save();
+            }
+            catch (IOException ex)
+            {
+                MessageBox.Show(source, "The item could not be restored to its original fence: " + ex.Message,
+                    "Fence move could not be rolled back", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                MessageBox.Show(source, "The item could not be restored to its original fence: " + ex.Message,
+                    "Fence move could not be rolled back", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (InvalidOperationException ex)
+            {
+                MessageBox.Show(source, "The item could not be restored to its original fence: " + ex.Message,
+                    "Fence move could not be rolled back", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+            var destinationIndex = fenceInfo.Files.FindIndex(item =>
+                string.Equals(item, path, StringComparison.OrdinalIgnoreCase));
+            if (destinationIndex >= 0)
+                fenceInfo.Files.RemoveAt(destinationIndex);
+
+            try
+            {
+                Save();
+            }
+            catch (IOException ex)
+            {
+                MessageBox.Show(this, "The item could not be removed from this fence during rollback: " + ex.Message,
+                    "Fence move could not be rolled back", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                MessageBox.Show(this, "The item could not be removed from this fence during rollback: " + ex.Message,
+                    "Fence move could not be rolled back", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (InvalidOperationException ex)
+            {
+                MessageBox.Show(this, "The item could not be removed from this fence during rollback: " + ex.Message,
+                    "Fence move could not be rolled back", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+            source.Invalidate();
+        }
+
+        private void RestoreFileOrder(System.Collections.Generic.List<string> originalFiles)
+        {
+            fenceInfo.Files.Clear();
+            fenceInfo.Files.AddRange(originalFiles);
+        }
+
+        private void ShowItemSaveError(Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "Could not save fence item", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+
+        private void ClearDragInsertionMarker()
+        {
+            dragInsertionIndex = -1;
+            Invalidate();
         }
 
         private void FenceWindow_Resize(object sender, EventArgs e)
@@ -275,7 +565,141 @@ namespace NoFences
 
         private void FenceWindow_MouseMove(object sender, MouseEventArgs e)
         {
-            Refresh();
+            if (!lockedToolStripMenuItem.Checked && e.Button == MouseButtons.Left && thumbnailDragPath != null
+                && !isDraggingThumbnail)
+            {
+                var dragSize = SystemInformation.DragSize;
+                var dragRectangle = new Rectangle(
+                    thumbnailMouseDown.X - dragSize.Width / 2,
+                    thumbnailMouseDown.Y - dragSize.Height / 2,
+                    dragSize.Width,
+                    dragSize.Height);
+                if (!dragRectangle.Contains(e.Location))
+                {
+                    isDraggingThumbnail = true;
+                    suppressNextClick = true;
+                    try
+                    {
+                        var dragData = new FenceItemDragData
+                        {
+                            Source = this,
+                            Path = thumbnailDragPath,
+                            Index = thumbnailDragIndex
+                        };
+                        var data = new DataObject();
+                        data.SetData(typeof(FenceItemDragData), dragData);
+                        DoDragDrop(data, DragDropEffects.Move);
+                    }
+                    finally
+                    {
+                        thumbnailDragPath = null;
+                        thumbnailDragIndex = -1;
+                        isDraggingThumbnail = false;
+                        ClearDragInsertionMarker();
+                    }
+                }
+            }
+
+            Invalidate();
+        }
+
+        private void FenceWindow_MouseDown(object sender, MouseEventArgs e)
+        {
+            suppressNextClick = false;
+            if (e.Button != MouseButtons.Left || lockedToolStripMenuItem.Checked)
+                return;
+
+            var itemIndex = GetItemIndexAt(e.Location);
+            thumbnailDragPath = itemIndex >= 0 ? fenceInfo.Files[itemIndex] : null;
+            thumbnailDragIndex = itemIndex;
+            thumbnailMouseDown = e.Location;
+        }
+
+        private void FenceWindow_MouseUp(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left && !isDraggingThumbnail)
+            {
+                thumbnailDragPath = null;
+                thumbnailDragIndex = -1;
+            }
+        }
+
+        private int GetItemIndexAt(Point point)
+        {
+            for (var i = 0; i < fenceInfo.Files.Count; i++)
+                if (GetItemBounds(i).Contains(point))
+                    return i;
+            return -1;
+        }
+
+        private int GetDropInsertionIndex(Point point)
+        {
+            if (fenceInfo.Files.Count == 0)
+                return 0;
+
+            var itemPadding = LogicalToDeviceUnits(logicalItemPadding);
+            var itemWidth = LogicalToDeviceUnits(logicalItemWidth);
+            var iconSize = LogicalToDeviceUnits(logicalIconSize);
+            var textHeight = LogicalToDeviceUnits(logicalTextHeight);
+            var itemHeight = iconSize + itemPadding + textHeight;
+            var rowTop = GetItemBounds(0).Top;
+            var closestRowDistance = int.MaxValue;
+
+            for (var i = 0; i < fenceInfo.Files.Count; i++)
+            {
+                var bounds = GetItemBounds(i);
+                var centerY = bounds.Top + itemHeight / 2;
+                var distance = Math.Abs(point.Y - centerY);
+                if (distance < closestRowDistance)
+                {
+                    closestRowDistance = distance;
+                    rowTop = bounds.Top;
+                }
+            }
+
+            var insertionIndex = 0;
+            for (var i = 0; i < fenceInfo.Files.Count; i++)
+            {
+                var bounds = GetItemBounds(i);
+                if (bounds.Top != rowTop)
+                    continue;
+
+                if (point.X < bounds.Left + bounds.Width / 2)
+                    return i;
+                insertionIndex = i + 1;
+            }
+
+            if (point.Y > rowTop + itemHeight / 2)
+            {
+                for (var i = 0; i < fenceInfo.Files.Count; i++)
+                    if (GetItemBounds(i).Top > rowTop)
+                        return i;
+            }
+
+            return insertionIndex;
+        }
+
+        private Rectangle GetItemBounds(int index)
+        {
+            var itemPadding = LogicalToDeviceUnits(logicalItemPadding);
+            var itemWidth = LogicalToDeviceUnits(logicalItemWidth);
+            var iconSize = LogicalToDeviceUnits(logicalIconSize);
+            var textHeight = LogicalToDeviceUnits(logicalTextHeight);
+            var itemHeight = iconSize + itemPadding + textHeight;
+            var x = itemPadding;
+            var y = itemPadding;
+
+            for (var i = 0; i < index; i++)
+            {
+                x += itemWidth + itemPadding;
+                if (x + itemWidth > Width)
+                {
+                    x = itemPadding;
+                    y += itemHeight + itemPadding;
+                }
+            }
+
+            return new Rectangle(x, y + titleHeight - scrollOffset, itemWidth, itemHeight);
         }
 
         private void FenceWindow_MouseEnter(object sender, EventArgs e)
@@ -289,7 +713,8 @@ namespace NoFences
 
         private void FenceWindow_MouseLeave(object sender, EventArgs e)
         {
-            Minify();
+            if (!isDraggingThumbnail)
+                Minify();
             selectedItem = null;
             Refresh();
         }
@@ -319,6 +744,12 @@ namespace NoFences
 
         private void FenceWindow_Click(object sender, EventArgs e)
         {
+            if (suppressNextClick)
+            {
+                suppressNextClick = false;
+                return;
+            }
+
             shouldUpdateSelection = true;
             Refresh();
         }
@@ -383,6 +814,9 @@ namespace NoFences
                 }
             }
 
+            if (dragInsertionIndex >= 0)
+                DrawDragInsertionMarker(graphics);
+
             scrollHeight -= (ClientRectangle.Height - titleHeight);
 
             // Scroll bars
@@ -413,6 +847,22 @@ namespace NoFences
             shouldUpdateSelection = false;
             hasSelectionUpdated = false;
             hasHoverUpdated = false;
+        }
+
+        private void DrawDragInsertionMarker(Graphics graphics)
+        {
+            if (fenceInfo.Files.Count == 0)
+                return;
+
+            var beforeItem = dragInsertionIndex < fenceInfo.Files.Count;
+            var markerTarget = beforeItem
+                ? GetItemBounds(dragInsertionIndex)
+                : GetItemBounds(fenceInfo.Files.Count - 1);
+            var x = beforeItem
+                ? markerTarget.Left - LogicalToDeviceUnits(3)
+                : markerTarget.Right + LogicalToDeviceUnits(3);
+            using (var markerPen = new Pen(Color.DeepSkyBlue, Math.Max(2, LogicalToDeviceUnits(2))))
+                graphics.DrawLine(markerPen, x, markerTarget.Top, x, markerTarget.Bottom);
         }
 
         private void RenderEntry(Graphics g, FenceEntry entry, int x, int y, int itemWidth, int textHeight, int iconSize)
@@ -516,6 +966,60 @@ namespace NoFences
             {
                 FenceManager.Instance.UpdateFence(fenceInfo);
             }
+        }
+
+        internal bool FitBoundsToCurrentLayout()
+        {
+            var itemPadding = LogicalToDeviceUnits(logicalItemPadding);
+            var itemWidth = LogicalToDeviceUnits(logicalItemWidth);
+            var iconSize = LogicalToDeviceUnits(logicalIconSize);
+            var textHeight = LogicalToDeviceUnits(logicalTextHeight);
+            var itemHeight = iconSize + itemPadding + textHeight;
+            var columns = Math.Max(1, (Width - itemPadding) / (itemWidth + itemPadding));
+            var rows = (fenceInfo.Files.Count + columns - 1) / columns;
+            var targetWidth = itemPadding + columns * (itemWidth + itemPadding);
+            var targetHeight = titleHeight + (Math.Max(1, rows) + 1) * itemPadding
+                + rows * itemHeight;
+            var currentExpandedHeight = isMinified ? prevHeight : Height;
+            if (Width == targetWidth && currentExpandedHeight == targetHeight
+                && fenceInfo.Width == targetWidth && fenceInfo.Height == targetHeight)
+                return false;
+
+            var previousWidth = Width;
+            var previousHeight = Height;
+            var previousExpandedHeight = prevHeight;
+            var previousSavedWidth = fenceInfo.Width;
+            var previousSavedHeight = fenceInfo.Height;
+
+            Width = targetWidth;
+            if (isMinified)
+                prevHeight = targetHeight;
+            else
+                Height = targetHeight;
+
+            fenceInfo.Width = targetWidth;
+            fenceInfo.Height = targetHeight;
+
+            var saved = false;
+            try
+            {
+                Save();
+                saved = true;
+            }
+            finally
+            {
+                if (!saved)
+                {
+                    Width = previousWidth;
+                    Height = previousHeight;
+                    prevHeight = previousExpandedHeight;
+                    fenceInfo.Width = previousSavedWidth;
+                    fenceInfo.Height = previousSavedHeight;
+                }
+            }
+
+            Invalidate();
+            return true;
         }
 
         private void FenceWindow_LocationChanged(object sender, EventArgs e)

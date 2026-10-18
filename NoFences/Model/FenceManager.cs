@@ -254,7 +254,20 @@ namespace NoFences.Model
 
         public void RemoveFence(FenceInfo info)
         {
-            Directory.Delete(GetFolderPath(info), true);
+            var xmlFolder = GetFolderPath(info);
+            if (Directory.Exists(xmlFolder))
+                Directory.Delete(xmlFolder, true);
+
+            var jsonFolder = Path.Combine(basePath, JsonFenceFolderName, info.Id.ToString());
+            if (Directory.Exists(jsonFolder))
+                Directory.Delete(jsonFolder, true);
+
+            foreach (var backupDirectory in Directory.EnumerateDirectories(basePath, BackupDirectoryPattern))
+            {
+                var backupFile = Path.Combine(backupDirectory, info.Id.ToString() + BackupFileSuffix + ".xml");
+                if (File.Exists(backupFile))
+                    File.Delete(backupFile);
+            }
         }
 
         public void UpdateFence(FenceInfo fenceInfo)
