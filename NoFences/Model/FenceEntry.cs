@@ -32,7 +32,7 @@ namespace NoFences.Model
             else return new FenceEntry(path, EntryType.Missing);
         }
 
-        public Icon ExtractIcon(ThumbnailProvider thumbnailProvider)
+        public Icon ExtractIcon(ThumbnailProvider thumbnailProvider, int thumbnailSize)
         {
             if (Type == EntryType.Missing)
                 return SystemIcons.Warning;
@@ -40,7 +40,7 @@ namespace NoFences.Model
             if (Type == EntryType.File)
             {
                 if (thumbnailProvider.IsSupported(Path))
-                    return thumbnailProvider.GenerateThumbnail(Path);
+                    return thumbnailProvider.GenerateThumbnail(Path, thumbnailSize);
                 else
                     return Icon.ExtractAssociatedIcon(Path);
             }

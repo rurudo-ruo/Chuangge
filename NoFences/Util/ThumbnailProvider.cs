@@ -39,20 +39,26 @@ namespace NoFences.Util
 
         public Icon GenerateThumbnail(string path)
         {
-            if (!iconCache.ContainsKey(path))
+            return GenerateThumbnail(path, 32);
+        }
+
+        public Icon GenerateThumbnail(string path, int size)
+        {
+            var cacheKey = path + "|" + size;
+            if (!iconCache.ContainsKey(cacheKey))
             {
-                return SubmitGeneratorTask(path).icon;
+                return SubmitGeneratorTask(path, size, cacheKey).icon;
             }
             else
             {
-                return iconCache[path].icon;
+                return iconCache[cacheKey].icon;
             }
         }
 
-        private ThumbnailState SubmitGeneratorTask(string path)
+        private ThumbnailState SubmitGeneratorTask(string path, int size, string cacheKey)
         {
             var state = new ThumbnailState() { icon = Icon.ExtractAssociatedIcon(path) };
-            iconCache[path] = state;
+            iconCache[cacheKey] = state;
 
             Task.Run(() =>
             {
@@ -61,7 +67,7 @@ namespace NoFences.Util
                 {
                     using (var img = Image.FromStream(ms))
                     {
-                        var thumb = (Bitmap)img.GetThumbnailImage(32, 32, () => false, IntPtr.Zero);
+                        var thumb = (Bitmap)img.GetThumbnailImage(size, size, () => false, IntPtr.Zero);
                         var icon = Icon.FromHandle(thumb.GetHicon());
                         state.icon = icon;
                         IconThumbnailLoaded(this, new EventArgs());

@@ -22,5 +22,29 @@ namespace NoFences.Properties {
                 return defaultInstance;
             }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("35")]
+        public int GlobalTitleHeight {
+            get {
+                return ((int)(this["GlobalTitleHeight"]));
+            }
+            set {
+                this["GlobalTitleHeight"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool HideTitleArea {
+            get {
+                return ((bool)(this["HideTitleArea"]));
+            }
+            set {
+                this["HideTitleArea"] = value;
+            }
+        }
     }
 }
