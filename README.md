@@ -1,59 +1,32 @@
 # 窗格
 
-A personal fork of [Twometer's NoFences](https://github.com/Twometer/NoFences), developed and maintained by **rurudo**. Licensed under the MIT License; see [LICENSE](LICENSE). The original copyright and license terms are retained.
+**桌面整理与美化 | Organize and personalize your Windows desktop**
 
-![Screenshot](screenshot.png "窗格 in action")
+窗格 is a lightweight desktop organizer for grouping files, folders, and shortcuts into resizable, translucent desktop panels. Arrange items as thumbnails, sort them with drag-and-drop, and tune the appearance to suit your desktop and display scaling.
 
-## Build
+This is a personal fork of [Twometer's NoFences](https://github.com/Twometer/NoFences), developed and maintained by **rurudo**. It is distributed under the MIT License. See [LICENSE](LICENSE) for the original copyright and license terms.
 
-窗格 is a 64-bit Windows Forms application targeting **.NET Framework 4.8**.
+![窗格 desktop organizer](screenshot.png "窗格 in action")
 
-### Prerequisites
+## Features
 
-- Windows
-- Visual Studio 2022 Build Tools (or Visual Studio) with the **MSBuild** component
-- The **.NET Framework 4.8 targeting pack**. In Visual Studio Installer, select it under **Individual components**. Alternatively, install the [.NET Framework 4.8 Developer Pack](https://aka.ms/msbuild/developerpacks).
+- Create desktop panels to group files, folders, and shortcuts.
+- View items as thumbnails and rearrange them by dragging.
+- Move items between panels or add references by dragging files and folders from Explorer.
+- Adjust global title appearance, hide panel titles, and fit all panels to their current thumbnail layout.
+- Work with missing items: locate replacements, remove entries, or open their containing folder.
+- Scale across monitors with different DPI settings.
 
-### Build the executable
+## Using 窗格
 
-From the repository folder, run in PowerShell:
+The notification-area icon provides **New fence**, **Advanced settings**, and **Exit** actions. Double-click the icon to open Advanced settings.
 
-```powershell
-.\build.ps1
-```
+Open **Advanced settings** to set the global title size or hide all panel title bars and title text. When titles are hidden, hold **Alt** while dragging a panel to move it; resize its edges as usual. The **Modify all** button is a one-time action that adjusts panel bounds to fit the current thumbnail layout.
 
-The script checks for MSBuild and the .NET Framework 4.8 targeting pack before building. If PowerShell blocks running the script, use:
+Drag a thumbnail to reorder it within its panel, or onto another unlocked panel to move it. Dragging files and folders from Explorer adds references to them without moving the original files.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\build.ps1
-```
+If an item is missing, it stays visible with a warning icon and a “(missing)” label. Right-click it to locate a replacement, remove it from the panel, or open its containing folder if that folder is still available.
 
-The Release executable is created at `窗格\bin\Release\窗格.exe`.
+## Build and development
 
-The application retains the existing `%LOCALAPPDATA%\NoFences` fence-data directory so upgrading this fork continues to use your saved fence layouts and contents.
-
-### Run
-
-The target computer needs the **.NET Framework 4.8 runtime**. It is separate from the targeting pack used to build the application; install the runtime if it is not already available on the computer.
-
-## Display scaling
-
-The app opts into Per-Monitor V2 DPI awareness. Fence contents, resize hit areas, and image thumbnails scale with monitor DPI, and the custom-rendered text uses grid-fitted anti-aliasing. When moving a fence between monitors, its on-screen content updates to the new scale; saved window positions and sizes retain the existing format.
-
-## System tray
-
-窗格 provides a notification-area icon with **New fence**, **Advanced settings**, and **Exit** actions. Double-click the icon to open Advanced settings. The settings window includes global display controls and the fence data folder; existing fence-specific options remain in each fence's right-click menu.
-
-## Global appearance settings
-
-Open **Advanced settings** from the tray menu to change the global title size (16-100 logical pixels) or hide all fence title bars and title text. The global size overrides each fence's saved title size without changing those saved values. When titles are hidden, hold **Alt** and drag a fence to move it; resize its edges as usual. The **Modify all** action in Advanced settings is a one-time operation: it adjusts each fence's outer bounds to fit its current thumbnail columns and rows, preserving the current column count, then saves the new bounds.
-
-## Fence data recovery
-
-窗格 loads its original XML fence metadata as well as JSON fence data stored in the newer `Fences\<id>\fence.json` layout and XML metadata in `Backup_XML_*` folders. Alternate-format sources are read without being changed. If a saved file or folder path no longer exists, the item remains visible with a warning icon and a “(missing)” label instead of disappearing from its fence. Right-click the missing item to locate a replacement file or folder, remove the item from the fence, or open its containing folder when that folder still exists.
-
-Removing a fence deletes its saved metadata in the XML and JSON locations and matching recovery-backup records, preventing deleted fences from being restored from an older copy at the next startup.
-
-## Moving and sorting fence items
-
-Drag a thumbnail to a new position in its fence to change its saved order, or drag it onto another unlocked fence to move it there. Drag files and folders from File Explorer onto a fence to add them; these drops add references and do not move the original files.
+For prerequisites, build instructions, project structure, and implementation notes, see [DEVELOPMENT.md](DEVELOPMENT.md).
