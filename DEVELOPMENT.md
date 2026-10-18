@@ -26,6 +26,10 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1
 
 The Release executable is created at `窗格\bin\Release\窗格.exe`. The target computer needs the **.NET Framework 4.8 runtime**, which is separate from the targeting pack used to build the application.
 
+## GitHub releases
+
+Pushing a tag matching `v*` starts `.github/workflows/release.yml`. It builds the Release configuration and attaches two assets: an EXE-only download and a ZIP containing the executable, application configuration, Czech and Chinese resource assemblies, README, and license. Because this is a .NET Framework application, both downloads require the .NET Framework 4.8 runtime to be installed on the target PC.
+
 ## Display scaling
 
 The app opts into Per-Monitor V2 DPI awareness. Fence contents, resize hit areas, and image thumbnails scale with monitor DPI; custom-rendered text uses grid-fitted anti-aliasing. Saved window positions and sizes retain the existing format.

@@ -27,6 +27,10 @@ Drag a thumbnail to reorder it within its panel, or onto another unlocked panel 
 
 If an item is missing, it stays visible with a warning icon and a “(missing)” label. Right-click it to locate a replacement, remove it from the panel, or open its containing folder if that folder is still available.
 
+## Downloads
+
+GitHub releases provide an EXE-only download and a ZIP package with the application configuration and localized resources. Both require the **.NET Framework 4.8 runtime** on Windows; the EXE-only download is not self-contained.
+
 ## Build and development
 
 For prerequisites, build instructions, project structure, and implementation notes, see [DEVELOPMENT.md](DEVELOPMENT.md).

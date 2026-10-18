@@ -1,0 +1,65 @@
+name: Build and publish release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build Release
+        shell: powershell
+        run: msbuild .\窗格.sln /m /t:Rebuild /p:Configuration=Release '/p:Platform=Any CPU'
+
+      - name: Prepare release assets
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $outputDirectory = Join-Path $env:GITHUB_WORKSPACE '窗格\bin\Release'
+          $releaseDirectory = Join-Path $env:GITHUB_WORKSPACE 'release-assets'
+          $packageDirectory = Join-Path $env:RUNNER_TEMP '窗格-release-package'
+          $version = $env:GITHUB_REF_NAME
+
+          $executable = Join-Path $outputDirectory '窗格.exe'
+          $configuration = Join-Path $outputDirectory '窗格.exe.config'
+          if (-not (Test-Path $executable)) {
+            throw "Expected executable was not produced: $executable"
+          }
+          if (-not (Test-Path $configuration)) {
+            throw "Expected application configuration was not produced: $configuration"
+          }
+          foreach ($culture in @('cs', 'zh-CN')) {
+            if (-not (Test-Path (Join-Path $outputDirectory "$culture\窗格.resources.dll"))) {
+              throw "Expected $culture resource assembly was not produced."
+            }
+          }
+
+          New-Item -ItemType Directory -Path $releaseDirectory -Force | Out-Null
+          New-Item -ItemType Directory -Path $packageDirectory -Force | Out-Null
+          Copy-Item $executable (Join-Path $releaseDirectory "窗格-$version.exe")
+          Copy-Item $executable, $configuration -Destination $packageDirectory
+          Copy-Item (Join-Path $outputDirectory 'cs') -Destination $packageDirectory -Recurse
+          Copy-Item (Join-Path $outputDirectory 'zh-CN') -Destination $packageDirectory -Recurse
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'README.md'), (Join-Path $env:GITHUB_WORKSPACE 'LICENSE'), (Join-Path $env:GITHUB_WORKSPACE 'screenshot.png') -Destination $packageDirectory
+
+          Compress-Archive -Path (Join-Path $packageDirectory '*') `
+            -DestinationPath (Join-Path $releaseDirectory "窗格-$version-windows-x64.zip") `
+            -CompressionLevel Optimal
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*
+          generate_release_notes: true
