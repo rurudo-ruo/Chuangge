@@ -4,6 +4,8 @@
 
 窗格 is a lightweight desktop organizer for grouping files, folders, and shortcuts into resizable, translucent desktop panels. Arrange items as thumbnails, sort them with drag-and-drop, and tune the appearance to suit your desktop and display scaling.
 
+**欢迎提意见 | Contributions are welcome!**
+
 This is a personal fork of [Twometer's NoFences](https://github.com/Twometer/NoFences), developed and maintained by **rurudo**. It is distributed under the MIT License. See [LICENSE](LICENSE) for the original copyright and license terms.
 
 ![窗格 desktop organizer](screenshot.png "窗格 in action")
