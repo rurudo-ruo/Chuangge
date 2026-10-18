@@ -3,6 +3,7 @@
     public enum EntryType
     {
         File,
-        Folder
+        Folder,
+        Missing
     }
 }

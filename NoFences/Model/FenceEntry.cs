@@ -14,7 +14,8 @@ namespace NoFences.Model
 
         public EntryType Type { get; }
 
-        public string Name => System.IO.Path.GetFileNameWithoutExtension(Path);
+        public string Name => System.IO.Path.GetFileNameWithoutExtension(Path)
+            + (Type == EntryType.Missing ? " (missing)" : string.Empty);
 
         private FenceEntry(string path, EntryType type)
         {
@@ -28,11 +29,14 @@ namespace NoFences.Model
                 return new FenceEntry(path, EntryType.File);
             else if (Directory.Exists(path))
                 return new FenceEntry(path, EntryType.Folder);
-            else return null;
+            else return new FenceEntry(path, EntryType.Missing);
         }
 
         public Icon ExtractIcon(ThumbnailProvider thumbnailProvider)
         {
+            if (Type == EntryType.Missing)
+                return SystemIcons.Warning;
+
             if (Type == EntryType.File)
             {
                 if (thumbnailProvider.IsSupported(Path))
@@ -48,6 +52,9 @@ namespace NoFences.Model
 
         public void Open()
         {
+            if (Type == EntryType.Missing)
+                return;
+
             Task.Run(() =>
             {
                 // start asynchronously

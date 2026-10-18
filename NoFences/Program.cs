@@ -25,15 +25,26 @@ namespace NoFences
                     Application.EnableVisualStyles();
                     Application.SetCompatibleTextRenderingDefault(false);
 
-                    var skippedFolders = FenceManager.Instance.LoadFences();
+                    var loadResult = FenceManager.Instance.LoadFences();
                     if (Application.OpenForms.Count == 0)
                         FenceManager.Instance.CreateFence("First fence");
 
-                    if (skippedFolders.Count > 0)
+                    if (loadResult.LoadedFromJson > 0 || loadResult.LoadedFromBackup > 0 || loadResult.SkippedPaths.Count > 0)
                     {
-                        var message = "Some saved fences could not be loaded. These folders were skipped and have not been changed:"
-                            + Environment.NewLine + Environment.NewLine
-                            + string.Join(Environment.NewLine, skippedFolders);
+                        var messages = new System.Collections.Generic.List<string>();
+                        if (loadResult.LoadedFromJson > 0 || loadResult.LoadedFromBackup > 0)
+                        {
+                            messages.Add("Loaded " + loadResult.LoadedFromJson + " fence(s) from JSON storage and "
+                                + loadResult.LoadedFromBackup + " fence(s) from XML backups. Original source files were left untouched.");
+                        }
+
+                        if (loadResult.SkippedPaths.Count > 0)
+                        {
+                            messages.Add("Some fence data could not be loaded from these paths:"
+                                + Environment.NewLine + string.Join(Environment.NewLine, loadResult.SkippedPaths));
+                        }
+
+                        var message = string.Join(Environment.NewLine + Environment.NewLine, messages);
                         MessageBox.Show(message, "NoFences", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }
 
