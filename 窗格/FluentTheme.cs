@@ -1,5 +1,7 @@
 using System;
 using System.Drawing;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace 窗格
@@ -134,6 +136,145 @@ namespace 窗格
         public static Color AccentOverlay(int alpha)
         {
             return Color.FromArgb(alpha, Accent.R, Accent.G, Accent.B);
+        }
+
+        public static Bitmap CreateBlurredTint(Bitmap source, Color tint, int radius)
+        {
+            return CreateBlurredBitmap(source, tint, radius, 255);
+        }
+
+        public static Bitmap CreateBlurredColor(Bitmap source, int radius, int opacity)
+        {
+            return CreateBlurredBitmap(source, null, radius, Math.Max(0, Math.Min(255, opacity)));
+        }
+
+        private static Bitmap CreateBlurredBitmap(Bitmap source, Color? tint, int radius, int opacity)
+        {
+            radius = Math.Max(1, radius);
+            var width = source.Width;
+            var height = source.Height;
+            var pixelCount = width * height;
+            var sourcePixels = new byte[width * height * 4];
+            var sourceData = source.LockBits(new Rectangle(0, 0, width, height),
+                ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            try
+            {
+                for (var y = 0; y < height; y++)
+                    Marshal.Copy(IntPtr.Add(sourceData.Scan0, y * sourceData.Stride),
+                        sourcePixels, y * width * 4, width * 4);
+            }
+            finally
+            {
+                source.UnlockBits(sourceData);
+            }
+
+            var kernel = CreateBlurKernel(radius);
+            var horizontal = new float[pixelCount * 4];
+            var blurred = new float[pixelCount * 4];
+            for (var i = 0; i < pixelCount; i++)
+            {
+                var alpha = sourcePixels[i * 4 + 3] / 255f;
+                horizontal[i * 4] = sourcePixels[i * 4] * alpha;
+                horizontal[i * 4 + 1] = sourcePixels[i * 4 + 1] * alpha;
+                horizontal[i * 4 + 2] = sourcePixels[i * 4 + 2] * alpha;
+                horizontal[i * 4 + 3] = sourcePixels[i * 4 + 3];
+            }
+
+            var premultipliedPixels = horizontal;
+            horizontal = new float[pixelCount * 4];
+            for (var y = 0; y < height; y++)
+            {
+                for (var x = 0; x < width; x++)
+                {
+                    var index = (y * width + x) * 4;
+                    for (var channel = 0; channel < 4; channel++)
+                    {
+                        var value = 0f;
+                        for (var k = -radius; k <= radius; k++)
+                        {
+                            var sampleX = x + k;
+                            if (sampleX >= 0 && sampleX < width)
+                                value += premultipliedPixels[(y * width + sampleX) * 4 + channel]
+                                    * kernel[k + radius];
+                        }
+                        horizontal[index + channel] = value;
+                    }
+                }
+            }
+
+            for (var y = 0; y < height; y++)
+            {
+                for (var x = 0; x < width; x++)
+                {
+                    var index = (y * width + x) * 4;
+                    for (var channel = 0; channel < 4; channel++)
+                    {
+                        var value = 0f;
+                        for (var k = -radius; k <= radius; k++)
+                        {
+                            var sampleY = y + k;
+                            if (sampleY >= 0 && sampleY < height)
+                                value += horizontal[(sampleY * width + x) * 4 + channel]
+                                    * kernel[k + radius];
+                        }
+                        blurred[index + channel] = value;
+                    }
+                }
+            }
+
+            var tintedPixels = new byte[sourcePixels.Length];
+            for (var i = 0; i < pixelCount; i++)
+            {
+                var alpha = blurred[i * 4 + 3];
+                var outputAlpha = (byte)Math.Max(0, Math.Min(255, alpha * opacity / 255f));
+                if (tint.HasValue)
+                {
+                    tintedPixels[i * 4] = tint.Value.B;
+                    tintedPixels[i * 4 + 1] = tint.Value.G;
+                    tintedPixels[i * 4 + 2] = tint.Value.R;
+                    tintedPixels[i * 4 + 3] = (byte)(outputAlpha * tint.Value.A / 255);
+                }
+                else if (alpha > 0)
+                {
+                    tintedPixels[i * 4] = (byte)Math.Min(255, blurred[i * 4] * 255f / alpha);
+                    tintedPixels[i * 4 + 1] = (byte)Math.Min(255, blurred[i * 4 + 1] * 255f / alpha);
+                    tintedPixels[i * 4 + 2] = (byte)Math.Min(255, blurred[i * 4 + 2] * 255f / alpha);
+                    tintedPixels[i * 4 + 3] = outputAlpha;
+                }
+            }
+
+            var result = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+            var resultData = result.LockBits(new Rectangle(0, 0, width, height),
+                ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+            try
+            {
+                for (var y = 0; y < height; y++)
+                    Marshal.Copy(tintedPixels, y * width * 4,
+                        IntPtr.Add(resultData.Scan0, y * resultData.Stride), width * 4);
+            }
+            finally
+            {
+                result.UnlockBits(resultData);
+            }
+
+            return result;
+        }
+
+        private static float[] CreateBlurKernel(int radius)
+        {
+            var sigma = Math.Max(1f, radius / 2f);
+            var kernel = new float[radius * 2 + 1];
+            var total = 0f;
+            for (var i = -radius; i <= radius; i++)
+            {
+                var value = (float)Math.Exp(-(i * i) / (2f * sigma * sigma));
+                kernel[i + radius] = value;
+                total += value;
+            }
+
+            for (var i = 0; i < kernel.Length; i++)
+                kernel[i] /= total;
+            return kernel;
         }
 
         public static Color GetContrastingText(Color color)

@@ -21,7 +21,6 @@ namespace 窗格
         private const int logicalIconSize = 32;
         private const int logicalTextHeight = 36;
         private const int logicalItemPadding = 12;
-        private const float logicalShadowDistance = 1.5f;
 
         private readonly FenceInfo fenceInfo;
 
@@ -954,8 +953,6 @@ namespace 窗格
                 LineAlignment = StringAlignment.Near,
                 Trimming = StringTrimming.EllipsisCharacter
             })
-            using (var shadowBrush = new SolidBrush(Color.FromArgb(FluentTheme.IsDark ? 150 : 120,
-                FluentTheme.IsDark ? Color.Black : Color.FromArgb(20, 20, 20))))
             {
                 var textSize = g.MeasureString(name, iconFont, textMaxSize, stringFormat);
                 var inset = LogicalToDeviceUnits(4);
@@ -1003,10 +1000,35 @@ namespace 窗格
                         g.DrawPath(borderPen, cardPath);
                 }
 
-                g.DrawIcon(icon, new Rectangle(x + (itemWidth - iconSize) / 2, iconY, iconSize, iconSize));
-                var shadowDistance = LogicalToDeviceUnits(3) * (logicalShadowDistance / 3);
-                g.DrawString(name, iconFont, shadowBrush,
-                    new RectangleF(textPosition.Move(shadowDistance, shadowDistance), textMaxSize), stringFormat);
+                var iconRect = new Rectangle(x + (itemWidth - iconSize) / 2, iconY, iconSize, iconSize);
+                var glowRadius = LogicalToDeviceUnits(9);
+                using (var iconLayer = new Bitmap(iconSize + glowRadius * 2, iconSize + glowRadius * 2))
+                using (var iconGraphics = Graphics.FromImage(iconLayer))
+                {
+                    iconGraphics.DrawIcon(icon, new Rectangle(glowRadius, glowRadius, iconSize, iconSize));
+                    using (var iconGlow = FluentTheme.CreateBlurredColor(iconLayer, glowRadius, 205))
+                    {
+                        g.DrawImageUnscaled(iconGlow, iconRect.X - glowRadius, iconRect.Y - glowRadius);
+                    }
+                }
+                g.DrawIcon(icon, iconRect);
+
+                var shadowRadius = LogicalToDeviceUnits(3);
+                var shadowOffset = LogicalToDeviceUnits(1);
+                using (var textLayer = new Bitmap(
+                    Math.Max(1, (int)Math.Ceiling(textMaxSize.Width) + shadowRadius * 2),
+                    Math.Max(1, (int)Math.Ceiling(textMaxSize.Height) + shadowRadius * 2)))
+                using (var textGraphics = Graphics.FromImage(textLayer))
+                using (var shadowBrush = new SolidBrush(Color.FromArgb(FluentTheme.IsDark ? 82 : 58, Color.Black)))
+                {
+                    textGraphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+                    textGraphics.DrawString(name, iconFont, shadowBrush,
+                        new RectangleF(shadowRadius + shadowOffset, shadowRadius + shadowOffset,
+                            textMaxSize.Width, textMaxSize.Height), stringFormat);
+                    using (var blurredText = FluentTheme.CreateBlurredTint(textLayer, Color.Black, shadowRadius))
+                        g.DrawImageUnscaled(blurredText,
+                            (int)textPosition.X - shadowRadius, (int)textPosition.Y - shadowRadius);
+                }
                 using (var nameBrush = new SolidBrush(entry.Type == EntryType.Missing
                     ? Color.FromArgb(255, 224, 176)
                     : FluentTheme.Text))
@@ -1042,8 +1064,11 @@ namespace 窗格
                 path.AddEllipse(bounds);
                 using (var glow = new PathGradientBrush(path))
                 {
-                    glow.CenterColor = FluentTheme.AccentOverlay(FluentTheme.IsDark ? 48 : 36);
-                    glow.SurroundColors = new[] { Color.FromArgb(0, FluentTheme.Accent) };
+                    var highlight = FluentTheme.IsDark
+                        ? Color.White
+                        : Color.FromArgb(255, 255, 252, 245);
+                    glow.CenterColor = Color.FromArgb(FluentTheme.IsDark ? 42 : 30, highlight);
+                    glow.SurroundColors = new[] { Color.FromArgb(0, highlight) };
                     glow.FocusScales = new PointF(0.12f, 0.12f);
                     graphics.FillPath(glow, path);
                 }
