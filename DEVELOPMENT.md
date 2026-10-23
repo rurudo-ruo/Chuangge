@@ -36,7 +36,7 @@ The app opts into Per-Monitor V2 DPI awareness. Fence contents, resize hit areas
 
 ## UI appearance
 
-The interface uses Fluent Design as a visual baseline without adding a UI-framework dependency. `窗格\FluentTheme.cs` centralizes the settings and dialog palette and interactive button states. Fence windows remain custom-drawn and translucent; item spacing, selection, hover, and drag feedback are scaled from logical units for per-monitor DPI.
+The interface uses Fluent Design as a visual baseline without adding a UI-framework dependency. `窗格\FluentTheme.cs` centralizes the settings and dialog palette; buttons use stable colors without hover/pressed fills. Fence windows remain custom-drawn and translucent, with a soft cursor-following glow and persistent selection/drag feedback scaled from logical units for per-monitor DPI.
 
 ## Fence data and compatibility
 

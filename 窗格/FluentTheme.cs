@@ -72,73 +72,27 @@ namespace 窗格
 
         public static void StyleButton(Button button, bool primary)
         {
-            var hovered = false;
-            var pressed = false;
-
             button.FlatStyle = FlatStyle.Flat;
             button.UseVisualStyleBackColor = false;
             button.FlatAppearance.BorderSize = 1;
             button.Padding = new Padding(12, 5, 12, 5);
             button.Cursor = Cursors.Default;
 
-            Action updateAppearance = () =>
+            if (!button.Enabled)
             {
-                if (!button.Enabled)
-                {
-                    button.BackColor = Color.FromArgb(240, 240, 240);
-                    button.ForeColor = SecondaryText;
-                    button.FlatAppearance.BorderColor = Border;
-                }
-                else if (pressed)
-                {
-                    button.BackColor = primary
-                        ? Color.FromArgb(0, 90, 158)
-                        : Color.FromArgb(225, 238, 249);
-                    button.ForeColor = primary ? Color.White : Text;
-                    button.FlatAppearance.BorderColor = primary ? Color.FromArgb(0, 90, 158) : Accent;
-                }
-                else if (hovered || button.Focused)
-                {
-                    button.BackColor = primary
-                        ? Color.FromArgb(0, 105, 190)
-                        : Color.FromArgb(238, 246, 252);
-                    button.ForeColor = primary ? Color.White : Text;
-                    button.FlatAppearance.BorderColor = primary ? Color.FromArgb(0, 105, 190) : Accent;
-                }
-                else
-                {
-                    button.BackColor = primary ? Accent : Surface;
-                    button.ForeColor = primary ? Color.White : Text;
-                    button.FlatAppearance.BorderColor = primary ? Accent : Border;
-                }
-            };
+                button.BackColor = Color.FromArgb(240, 240, 240);
+                button.ForeColor = SecondaryText;
+                button.FlatAppearance.BorderColor = Border;
+                button.FlatAppearance.MouseOverBackColor = button.BackColor;
+                button.FlatAppearance.MouseDownBackColor = button.BackColor;
+                return;
+            }
 
-            button.MouseEnter += (sender, e) =>
-            {
-                hovered = true;
-                updateAppearance();
-            };
-            button.MouseLeave += (sender, e) =>
-            {
-                hovered = false;
-                pressed = false;
-                updateAppearance();
-            };
-            button.MouseDown += (sender, e) =>
-            {
-                if (e.Button == MouseButtons.Left)
-                    pressed = true;
-                updateAppearance();
-            };
-            button.MouseUp += (sender, e) =>
-            {
-                pressed = false;
-                updateAppearance();
-            };
-            button.GotFocus += (sender, e) => updateAppearance();
-            button.LostFocus += (sender, e) => updateAppearance();
-            button.EnabledChanged += (sender, e) => updateAppearance();
-            updateAppearance();
+            button.BackColor = primary ? Accent : Surface;
+            button.ForeColor = primary ? Color.White : Text;
+            button.FlatAppearance.BorderColor = primary ? Accent : Border;
+            button.FlatAppearance.MouseOverBackColor = button.BackColor;
+            button.FlatAppearance.MouseDownBackColor = button.BackColor;
         }
     }
 }

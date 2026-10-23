@@ -42,6 +42,8 @@ namespace 窗格
         private bool isDraggingThumbnail;
         private bool suppressNextClick;
         private int dragInsertionIndex = -1;
+        private Point pointerPosition;
+        private bool pointerInside;
 
         private int scrollHeight;
         private int scrollOffset;
@@ -599,6 +601,9 @@ namespace 窗格
 
         private void FenceWindow_MouseMove(object sender, MouseEventArgs e)
         {
+            pointerPosition = e.Location;
+            pointerInside = true;
+
             if (!lockedToolStripMenuItem.Checked && e.Button == MouseButtons.Left && thumbnailDragPath != null
                 && !isDraggingThumbnail)
             {
@@ -738,6 +743,8 @@ namespace 窗格
 
         private void FenceWindow_MouseEnter(object sender, EventArgs e)
         {
+            pointerPosition = PointToClient(MousePosition);
+            pointerInside = true;
             if (minifyToolStripMenuItem.Checked && isMinified)
             {
                 isMinified = false;
@@ -747,6 +754,7 @@ namespace 窗格
 
         private void FenceWindow_MouseLeave(object sender, EventArgs e)
         {
+            pointerInside = false;
             if (!isDraggingThumbnail)
                 Minify();
             selectedItem = null;
@@ -885,7 +893,8 @@ namespace 窗格
                 }
             }
 
-
+            if (pointerInside)
+                DrawPointerGlow(graphics);
 
             // Click handlers
             if (shouldUpdateSelection && !hasSelectionUpdated)
@@ -965,21 +974,15 @@ namespace 窗格
                 }
 
                 var isSelected = string.Equals(selectedItem, entry.Path, StringComparison.OrdinalIgnoreCase);
-                if (isSelected || mouseOver)
+                if (isSelected)
                 {
-                    var fillColor = isSelected
-                        ? Color.FromArgb(mouseOver ? 74 : 50, 0, 120, 212)
-                        : Color.FromArgb(34, Color.White);
-                    using (var cardBrush = new SolidBrush(fillColor))
+                    using (var cardBrush = new SolidBrush(Color.FromArgb(50, 0, 120, 212)))
                     using (var cardPath = CreateRoundedRectangle(cardRect, LogicalToDeviceUnits(7)))
                         g.FillPath(cardBrush, cardPath);
 
-                    if (isSelected)
-                    {
-                        using (var borderPen = new Pen(Color.FromArgb(190, 96, 173, 232)))
-                        using (var cardPath = CreateRoundedRectangle(cardRect, LogicalToDeviceUnits(7)))
-                            g.DrawPath(borderPen, cardPath);
-                    }
+                    using (var borderPen = new Pen(Color.FromArgb(190, 96, 173, 232)))
+                    using (var cardPath = CreateRoundedRectangle(cardRect, LogicalToDeviceUnits(7)))
+                        g.DrawPath(borderPen, cardPath);
                 }
 
                 g.DrawIcon(icon, new Rectangle(x + (itemWidth - iconSize) / 2, y, iconSize, iconSize));
@@ -1009,6 +1012,24 @@ namespace 窗格
             path.AddArc(bounds.Left, bounds.Bottom - diameter, diameter, diameter, 90, 90);
             path.CloseFigure();
             return path;
+        }
+
+        private void DrawPointerGlow(Graphics graphics)
+        {
+            var radius = LogicalToDeviceUnits(76);
+            var bounds = new Rectangle(pointerPosition.X - radius, pointerPosition.Y - radius,
+                radius * 2, radius * 2);
+            using (var path = new GraphicsPath())
+            {
+                path.AddEllipse(bounds);
+                using (var glow = new PathGradientBrush(path))
+                {
+                    glow.CenterColor = Color.FromArgb(38, 220, 242, 255);
+                    glow.SurroundColors = new[] { Color.FromArgb(0, 120, 190, 255) };
+                    glow.FocusScales = new PointF(0.12f, 0.12f);
+                    graphics.FillPath(glow, path);
+                }
+            }
         }
 
         private void renameToolStripMenuItem_Click(object sender, EventArgs e)
