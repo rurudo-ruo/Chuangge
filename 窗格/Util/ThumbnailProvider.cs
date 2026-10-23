@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using 窗格.Win32;
 
 namespace 窗格.Util
 {
@@ -30,6 +32,9 @@ namespace 窗格.Util
         // Only allow 4 concurrent images to be decoded to try and prevent OOM errors
         private readonly SemaphoreSlim semaphore = new SemaphoreSlim(4);
         private readonly IDictionary<string, ThumbnailState> iconCache = new Dictionary<string, ThumbnailState>();
+        private readonly List<Icon> retiredIcons = new List<Icon>();
+        private readonly object syncRoot = new object();
+        private bool disposed;
         public event EventHandler IconThumbnailLoaded;
 
         public bool IsSupported(string path)
@@ -45,38 +50,103 @@ namespace 窗格.Util
         public Icon GenerateThumbnail(string path, int size)
         {
             var cacheKey = path + "|" + size;
-            if (!iconCache.ContainsKey(cacheKey))
+            lock (syncRoot)
             {
+                if (disposed)
+                    return SystemIcons.Application;
+
+                ThumbnailState state;
+                if (iconCache.TryGetValue(cacheKey, out state))
+                    return state.icon;
+
                 return SubmitGeneratorTask(path, size, cacheKey).icon;
             }
-            else
+        }
+
+        public void Dispose()
+        {
+            lock (syncRoot)
             {
-                return iconCache[cacheKey].icon;
+                if (disposed)
+                    return;
+
+                disposed = true;
+                foreach (var state in iconCache.Values)
+                    state.icon?.Dispose();
+                foreach (var icon in retiredIcons)
+                    icon.Dispose();
+                iconCache.Clear();
+                retiredIcons.Clear();
             }
         }
 
         private ThumbnailState SubmitGeneratorTask(string path, int size, string cacheKey)
         {
-            var state = new ThumbnailState() { icon = Icon.ExtractAssociatedIcon(path) };
+            var fallbackIcon = Icon.ExtractAssociatedIcon(path);
+            var state = new ThumbnailState
+            {
+                icon = fallbackIcon ?? (Icon)SystemIcons.Application.Clone()
+            };
             iconCache[cacheKey] = state;
 
-            Task.Run(() =>
+            Task.Run(() => GenerateThumbnailAsync(path, size, state));
+            return state;
+        }
+
+        private void GenerateThumbnailAsync(string path, int size, ThumbnailState state)
+        {
+            var semaphoreAcquired = false;
+            try
             {
                 semaphore.Wait();
-                using (MemoryStream ms = new MemoryStream(File.ReadAllBytes(path)))
+                semaphoreAcquired = true;
+                using (var ms = new MemoryStream(File.ReadAllBytes(path)))
                 {
                     using (var img = Image.FromStream(ms))
                     {
-                        var thumb = (Bitmap)img.GetThumbnailImage(size, size, () => false, IntPtr.Zero);
-                        var icon = Icon.FromHandle(thumb.GetHicon());
-                        state.icon = icon;
-                        IconThumbnailLoaded(this, new EventArgs());
-                        semaphore.Release();
-                        return icon;
+                        using (var thumb = (Bitmap)img.GetThumbnailImage(size, size, () => false, IntPtr.Zero))
+                        {
+                            var iconHandle = thumb.GetHicon();
+                            Icon icon;
+                            try
+                            {
+                                icon = (Icon)Icon.FromHandle(iconHandle).Clone();
+                            }
+                            finally
+                            {
+                                IconUtil.DestroyIcon(iconHandle);
+                            }
+
+                            lock (syncRoot)
+                            {
+                                if (disposed)
+                                {
+                                    icon.Dispose();
+                                    return;
+                                }
+
+                                retiredIcons.Add(state.icon);
+                                state.icon = icon;
+                            }
+
+                            IconThumbnailLoaded?.Invoke(this, EventArgs.Empty);
+                        }
                     }
                 }
-            });
-            return state;
+            }
+            catch (Exception ex) when (ex is IOException
+                || ex is UnauthorizedAccessException
+                || ex is ArgumentException
+                || ex is ExternalException
+                || ex is OutOfMemoryException)
+            {
+                System.Diagnostics.Debug.WriteLine("Could not generate image thumbnail for " + path + ": " + ex);
+            }
+            finally
+            {
+                if (semaphoreAcquired)
+                    semaphore.Release();
+            }
         }
 
     }

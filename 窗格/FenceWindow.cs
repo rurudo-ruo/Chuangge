@@ -6,6 +6,7 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Windows.Forms;
 using static 窗格.Win32.WindowUtil;
@@ -16,10 +17,10 @@ namespace 窗格
     {
         private int logicalTitleHeight;
         private int titleHeight;
-        private const int logicalItemWidth = 75;
+        private const int logicalItemWidth = 88;
         private const int logicalIconSize = 32;
-        private const int logicalTextHeight = 35;
-        private const int logicalItemPadding = 15;
+        private const int logicalTextHeight = 36;
+        private const int logicalItemPadding = 12;
         private const float logicalShadowDistance = 1.5f;
 
         private readonly FenceInfo fenceInfo;
@@ -80,6 +81,10 @@ namespace 窗格
         public FenceWindow(FenceInfo fenceInfo)
         {
             InitializeComponent();
+            appContextMenu.RenderMode = ToolStripRenderMode.System;
+            appContextMenu.Font = FluentTheme.BodyFont;
+            foreach (ToolStripItem item in appContextMenu.Items)
+                item.Padding = new Padding(10, 5, 10, 5);
             DropShadow.ApplyShadows(this);
             BlurUtil.EnableBlur(Handle);
             WindowUtil.HideFromAltTab(Handle);
@@ -224,6 +229,8 @@ namespace 窗格
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
             GlobalFenceSettings.Changed -= GlobalFenceSettings_Changed;
+            thumbnailProvider.IconThumbnailLoaded -= ThumbnailProvider_IconThumbnailLoaded;
+            thumbnailProvider.Dispose();
             titleFont?.Dispose();
             iconFont?.Dispose();
             base.OnFormClosed(e);
@@ -255,9 +262,36 @@ namespace 窗格
 
         private void deleteItemToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            fenceInfo.Files.Remove(hoveringItem);
+            var itemIndex = fenceInfo.Files.IndexOf(hoveringItem);
+            if (itemIndex < 0)
+                return;
+
+            var removedItem = fenceInfo.Files[itemIndex];
+            fenceInfo.Files.RemoveAt(itemIndex);
+            try
+            {
+                Save();
+            }
+            catch (IOException ex)
+            {
+                fenceInfo.Files.Insert(itemIndex, removedItem);
+                ShowItemSaveError(ex);
+                return;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                fenceInfo.Files.Insert(itemIndex, removedItem);
+                ShowItemSaveError(ex);
+                return;
+            }
+            catch (InvalidOperationException ex)
+            {
+                fenceInfo.Files.Insert(itemIndex, removedItem);
+                ShowItemSaveError(ex);
+                return;
+            }
+
             hoveringItem = null;
-            Save();
             Refresh();
         }
 
@@ -767,11 +801,11 @@ namespace 窗格
             graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
             graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
-            using (var backgroundBrush = new SolidBrush(Color.FromArgb(100, Color.Black)))
-            using (var titleBrush = new SolidBrush(Color.FromArgb(50, Color.Black)))
+            using (var backgroundBrush = new SolidBrush(Color.FromArgb(92, Color.Black)))
+            using (var titleBrush = new SolidBrush(Color.FromArgb(36, Color.Black)))
             using (var titleFormat = new StringFormat
             {
-                Alignment = StringAlignment.Center,
+                Alignment = StringAlignment.Near,
                 LineAlignment = StringAlignment.Center,
                 Trimming = StringTrimming.EllipsisCharacter
             })
@@ -781,7 +815,14 @@ namespace 窗格
                 {
                     graphics.FillRectangle(titleBrush, new Rectangle(0, 0, Width, titleHeight));
                     graphics.DrawString(Text, titleFont, Brushes.White,
-                        new RectangleF(0, 0, Width, titleHeight), titleFormat);
+                        new RectangleF(LogicalToDeviceUnits(12), 0,
+                            Math.Max(0, Width - LogicalToDeviceUnits(24)), titleHeight), titleFormat);
+                    using (var dividerPen = new Pen(Color.FromArgb(52, Color.White)))
+                    {
+                        var dividerY = titleHeight - 1;
+                        graphics.DrawLine(dividerPen, LogicalToDeviceUnits(12), dividerY,
+                            Math.Max(LogicalToDeviceUnits(12), Width - LogicalToDeviceUnits(12)), dividerY);
+                    }
                 }
             }
 
@@ -822,16 +863,26 @@ namespace 窗格
             // Scroll bars
             if (scrollHeight > 0)
             {
-                var contentHeight = Height - titleHeight;
-                var scrollbarHeight = contentHeight - scrollHeight;
-                using (var scrollBrush = new SolidBrush(Color.FromArgb(150, Color.Black)))
+                var contentHeight = Math.Max(0, Height - titleHeight);
+                if (contentHeight > 0)
                 {
-                    var scrollWidth = LogicalToDeviceUnits(5);
-                    graphics.FillRectangle(scrollBrush,
-                        new Rectangle(Width - scrollWidth, titleHeight + scrollOffset, scrollWidth, scrollbarHeight));
+                    scrollOffset = Math.Max(0, Math.Min(scrollOffset, scrollHeight));
+                    var totalContentHeight = (long)contentHeight + scrollHeight;
+                    var scrollbarHeight = Math.Min(contentHeight,
+                        Math.Max(LogicalToDeviceUnits(12), (int)((long)contentHeight * contentHeight / totalContentHeight)));
+                    var scrollRange = contentHeight - scrollbarHeight;
+                    var scrollbarTop = titleHeight
+                        + (int)((long)scrollOffset * scrollRange / scrollHeight);
+                    using (var scrollBrush = new SolidBrush(Color.FromArgb(150, Color.White)))
+                    {
+                        var scrollWidth = LogicalToDeviceUnits(4);
+                        var scrollRect = new Rectangle(Width - LogicalToDeviceUnits(7),
+                            scrollbarTop + LogicalToDeviceUnits(2), scrollWidth,
+                            Math.Max(LogicalToDeviceUnits(8), scrollbarHeight - LogicalToDeviceUnits(4)));
+                        using (var scrollPath = CreateRoundedRectangle(scrollRect, scrollWidth / 2))
+                            graphics.FillPath(scrollBrush, scrollPath);
+                    }
                 }
-
-                scrollOffset = Math.Min(scrollOffset, scrollHeight);
             }
 
 
@@ -861,8 +912,12 @@ namespace 窗格
             var x = beforeItem
                 ? markerTarget.Left - LogicalToDeviceUnits(3)
                 : markerTarget.Right + LogicalToDeviceUnits(3);
-            using (var markerPen = new Pen(Color.DeepSkyBlue, Math.Max(2, LogicalToDeviceUnits(2))))
-                graphics.DrawLine(markerPen, x, markerTarget.Top, x, markerTarget.Bottom);
+            var markerWidth = Math.Max(3, LogicalToDeviceUnits(3));
+            var markerRect = new Rectangle(x - markerWidth / 2, markerTarget.Top,
+                markerWidth, markerTarget.Height);
+            using (var markerBrush = new SolidBrush(FluentTheme.Accent))
+            using (var markerPath = CreateRoundedRectangle(markerRect, markerWidth / 2))
+                graphics.FillPath(markerBrush, markerPath);
         }
 
         private void RenderEntry(Graphics g, FenceEntry entry, int x, int y, int itemWidth, int textHeight, int iconSize)
@@ -873,22 +928,22 @@ namespace 窗格
             var textPosition = new PointF(x, y + iconSize + LogicalToDeviceUnits(5));
             var textMaxSize = new SizeF(itemWidth, textHeight);
 
-            using (var stringFormat = new StringFormat { Alignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter })
+            using (var stringFormat = new StringFormat
+            {
+                Alignment = StringAlignment.Center,
+                LineAlignment = StringAlignment.Near,
+                Trimming = StringTrimming.EllipsisCharacter
+            })
             using (var shadowBrush = new SolidBrush(Color.FromArgb(180, 15, 15, 15)))
-            using (var selectionPen = new Pen(Color.FromArgb(120, SystemColors.ActiveBorder)))
-            using (var selectedHoverBrush = new SolidBrush(Color.FromArgb(100, SystemColors.GradientActiveCaption)))
-            using (var selectedBrush = new SolidBrush(Color.FromArgb(80, SystemColors.GradientInactiveCaption)))
-            using (var hoverBrush = new SolidBrush(Color.FromArgb(80, SystemColors.ActiveCaption)))
             {
                 var textSize = g.MeasureString(name, iconFont, textMaxSize, stringFormat);
-                var borderWidth = LogicalToDeviceUnits(2);
-                var outlineRect = new Rectangle(x - borderWidth, y - borderWidth,
-                    itemWidth + borderWidth, iconSize + (int)textSize.Height + LogicalToDeviceUnits(7));
-                var outlineRectInner = outlineRect.Shrink(LogicalToDeviceUnits(1));
+                var inset = LogicalToDeviceUnits(4);
+                var cardRect = new Rectangle(x - inset, y - inset,
+                    itemWidth + inset * 2, iconSize + (int)textSize.Height + LogicalToDeviceUnits(12));
 
                 var mousePos = PointToClient(MousePosition);
                 var mouseOver = mousePos.X >= x && mousePos.Y >= y
-                    && mousePos.X < x + outlineRect.Width && mousePos.Y < y + outlineRect.Height;
+                    && mousePos.X < x + itemWidth && mousePos.Y < y + iconSize + textHeight;
 
                 if (mouseOver)
                 {
@@ -909,42 +964,71 @@ namespace 窗格
                     entry.Open();
                 }
 
-                if (selectedItem == entry.Path)
+                var isSelected = string.Equals(selectedItem, entry.Path, StringComparison.OrdinalIgnoreCase);
+                if (isSelected || mouseOver)
                 {
-                    if (mouseOver)
+                    var fillColor = isSelected
+                        ? Color.FromArgb(mouseOver ? 74 : 50, 0, 120, 212)
+                        : Color.FromArgb(34, Color.White);
+                    using (var cardBrush = new SolidBrush(fillColor))
+                    using (var cardPath = CreateRoundedRectangle(cardRect, LogicalToDeviceUnits(7)))
+                        g.FillPath(cardBrush, cardPath);
+
+                    if (isSelected)
                     {
-                        g.DrawRectangle(selectionPen, outlineRectInner);
-                        g.FillRectangle(selectedHoverBrush, outlineRect);
+                        using (var borderPen = new Pen(Color.FromArgb(190, 96, 173, 232)))
+                        using (var cardPath = CreateRoundedRectangle(cardRect, LogicalToDeviceUnits(7)))
+                            g.DrawPath(borderPen, cardPath);
                     }
-                    else
-                    {
-                        g.DrawRectangle(selectionPen, outlineRectInner);
-                        g.FillRectangle(selectedBrush, outlineRect);
-                    }
-                }
-                else if (mouseOver)
-                {
-                    g.DrawRectangle(selectionPen, outlineRectInner);
-                    g.FillRectangle(hoverBrush, outlineRect);
                 }
 
                 g.DrawIcon(icon, new Rectangle(x + (itemWidth - iconSize) / 2, y, iconSize, iconSize));
                 var shadowDistance = LogicalToDeviceUnits(3) * (logicalShadowDistance / 3);
                 g.DrawString(name, iconFont, shadowBrush,
                     new RectangleF(textPosition.Move(shadowDistance, shadowDistance), textMaxSize), stringFormat);
-                g.DrawString(name, iconFont, Brushes.White, new RectangleF(textPosition, textMaxSize), stringFormat);
+                using (var nameBrush = new SolidBrush(entry.Type == EntryType.Missing
+                    ? Color.FromArgb(255, 224, 176)
+                    : Color.White))
+                    g.DrawString(name, iconFont, nameBrush, new RectangleF(textPosition, textMaxSize), stringFormat);
             }
+        }
+
+        private static GraphicsPath CreateRoundedRectangle(Rectangle bounds, int radius)
+        {
+            var path = new GraphicsPath();
+            var diameter = Math.Max(1, radius * 2);
+            if (bounds.Width <= diameter || bounds.Height <= diameter)
+            {
+                path.AddRectangle(bounds);
+                return path;
+            }
+
+            path.AddArc(bounds.Left, bounds.Top, diameter, diameter, 180, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Top, diameter, diameter, 270, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Bottom - diameter, diameter, diameter, 0, 90);
+            path.AddArc(bounds.Left, bounds.Bottom - diameter, diameter, diameter, 90, 90);
+            path.CloseFigure();
+            return path;
         }
 
         private void renameToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var dialog = new EditDialog(Text);
-            if (dialog.ShowDialog(this) == DialogResult.OK)
+            using (var dialog = new EditDialog(Text))
             {
-                Text = dialog.NewName;
-                fenceInfo.Name = Text;
-                Refresh();
-                Save();
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    if (string.IsNullOrWhiteSpace(dialog.NewName))
+                    {
+                        MessageBox.Show(this, "A fence name cannot be empty.", "Invalid fence name",
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    Text = dialog.NewName;
+                    fenceInfo.Name = Text;
+                    Refresh();
+                    Save();
+                }
             }
         }
 

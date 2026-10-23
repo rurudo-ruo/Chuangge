@@ -34,6 +34,10 @@ Pushing a tag matching `v*` starts `.github/workflows/release.yml`. It uses `act
 
 The app opts into Per-Monitor V2 DPI awareness. Fence contents, resize hit areas, and image thumbnails scale with monitor DPI; custom-rendered text uses grid-fitted anti-aliasing. Saved window positions and sizes retain the existing format.
 
+## UI appearance
+
+The interface uses Fluent Design as a visual baseline without adding a UI-framework dependency. `窗格\FluentTheme.cs` centralizes the settings and dialog palette and interactive button states. Fence windows remain custom-drawn and translucent; item spacing, selection, hover, and drag feedback are scaled from logical units for per-monitor DPI.
+
 ## Fence data and compatibility
 
 The application continues to use `%LOCALAPPDATA%\NoFences` so existing layouts and contents remain available. It reads the original XML metadata format, JSON records in `Fences\<id>\fence.json`, and XML metadata in `Backup_XML_*` directories. Alternate-format sources are read without being changed. Removing a fence deletes its saved metadata in the XML and JSON locations and matching recovery-backup records.
