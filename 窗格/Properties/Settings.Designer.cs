@@ -46,5 +46,65 @@ namespace 窗格.Properties {
                 this["HideTitleArea"] = value;
             }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool UseSystemTheme {
+            get {
+                return ((bool)(this["UseSystemTheme"]));
+            }
+            set {
+                this["UseSystemTheme"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Light")]
+        public string DisplayMode {
+            get {
+                return ((string)(this["DisplayMode"]));
+            }
+            set {
+                this["DisplayMode"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("-16746284")]
+        public int CustomAccentColor {
+            get {
+                return ((int)(this["CustomAccentColor"]));
+            }
+            set {
+                this["CustomAccentColor"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("92")]
+        public int DarkOverlayOpacity {
+            get {
+                return ((int)(this["DarkOverlayOpacity"]));
+            }
+            set {
+                this["DarkOverlayOpacity"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("174")]
+        public int LightOverlayOpacity {
+            get {
+                return ((int)(this["LightOverlayOpacity"]));
+            }
+            set {
+                this["LightOverlayOpacity"] = value;
+            }
+        }
     }
 }

@@ -10,5 +10,20 @@
     <Setting Name="HideTitleArea" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">False</Value>
     </Setting>
+    <Setting Name="UseSystemTheme" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="DisplayMode" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Light</Value>
+    </Setting>
+    <Setting Name="CustomAccentColor" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">-16746284</Value>
+    </Setting>
+    <Setting Name="DarkOverlayOpacity" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">92</Value>
+    </Setting>
+    <Setting Name="LightOverlayOpacity" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">174</Value>
+    </Setting>
   </Settings>
 </SettingsFile>

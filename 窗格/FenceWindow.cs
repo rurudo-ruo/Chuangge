@@ -815,9 +815,13 @@ namespace 窗格
             graphics.SetClip(ClientRectangle);
             graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
             graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            var backgroundAlpha = GlobalFenceSettings.GetOverlayOpacity(92, 174);
+            var titleAlpha = GlobalFenceSettings.GetOverlayOpacity(36, 92);
 
-            using (var backgroundBrush = new SolidBrush(Color.FromArgb(92, Color.Black)))
-            using (var titleBrush = new SolidBrush(Color.FromArgb(36, Color.Black)))
+            using (var backgroundBrush = new SolidBrush(Color.FromArgb(backgroundAlpha,
+                FluentTheme.IsDark ? Color.Black : Color.White)))
+            using (var titleBrush = new SolidBrush(Color.FromArgb(titleAlpha,
+                FluentTheme.IsDark ? Color.Black : Color.White)))
             using (var titleFormat = new StringFormat
             {
                 Alignment = StringAlignment.Near,
@@ -829,10 +833,11 @@ namespace 窗格
                 if (!GlobalFenceSettings.HideTitleArea)
                 {
                     graphics.FillRectangle(titleBrush, new Rectangle(0, 0, Width, titleHeight));
-                    graphics.DrawString(Text, titleFont, Brushes.White,
+                    using (var titleTextBrush = new SolidBrush(FluentTheme.Text))
+                    graphics.DrawString(Text, titleFont, titleTextBrush,
                         new RectangleF(LogicalToDeviceUnits(12), 0,
                             Math.Max(0, Width - LogicalToDeviceUnits(24)), titleHeight), titleFormat);
-                    using (var dividerPen = new Pen(Color.FromArgb(52, Color.White)))
+                    using (var dividerPen = new Pen(Color.FromArgb(FluentTheme.IsDark ? 52 : 72, FluentTheme.Text)))
                     {
                         var dividerY = titleHeight - 1;
                         graphics.DrawLine(dividerPen, LogicalToDeviceUnits(12), dividerY,
@@ -888,7 +893,7 @@ namespace 窗格
                     var scrollRange = contentHeight - scrollbarHeight;
                     var scrollbarTop = titleHeight
                         + (int)((long)scrollOffset * scrollRange / scrollHeight);
-                    using (var scrollBrush = new SolidBrush(Color.FromArgb(150, Color.White)))
+                    using (var scrollBrush = new SolidBrush(Color.FromArgb(150, FluentTheme.Text)))
                     {
                         var scrollWidth = LogicalToDeviceUnits(4);
                         var scrollRect = new Rectangle(Width - LogicalToDeviceUnits(7),
@@ -949,7 +954,8 @@ namespace 窗格
                 LineAlignment = StringAlignment.Near,
                 Trimming = StringTrimming.EllipsisCharacter
             })
-            using (var shadowBrush = new SolidBrush(Color.FromArgb(180, 15, 15, 15)))
+            using (var shadowBrush = new SolidBrush(Color.FromArgb(FluentTheme.IsDark ? 150 : 120,
+                FluentTheme.IsDark ? Color.Black : Color.FromArgb(20, 20, 20))))
             {
                 var textSize = g.MeasureString(name, iconFont, textMaxSize, stringFormat);
                 var inset = LogicalToDeviceUnits(4);
@@ -988,11 +994,11 @@ namespace 窗格
                 var isSelected = string.Equals(selectedItem, entry.Path, StringComparison.OrdinalIgnoreCase);
                 if (isSelected)
                 {
-                    using (var cardBrush = new SolidBrush(Color.FromArgb(50, 0, 120, 212)))
+                    using (var cardBrush = new SolidBrush(FluentTheme.AccentOverlay(FluentTheme.IsDark ? 64 : 42)))
                     using (var cardPath = CreateRoundedRectangle(cardRect, LogicalToDeviceUnits(7)))
                         g.FillPath(cardBrush, cardPath);
 
-                    using (var borderPen = new Pen(Color.FromArgb(190, 96, 173, 232)))
+                    using (var borderPen = new Pen(Color.FromArgb(210, FluentTheme.Accent)))
                     using (var cardPath = CreateRoundedRectangle(cardRect, LogicalToDeviceUnits(7)))
                         g.DrawPath(borderPen, cardPath);
                 }
@@ -1003,7 +1009,7 @@ namespace 窗格
                     new RectangleF(textPosition.Move(shadowDistance, shadowDistance), textMaxSize), stringFormat);
                 using (var nameBrush = new SolidBrush(entry.Type == EntryType.Missing
                     ? Color.FromArgb(255, 224, 176)
-                    : Color.White))
+                    : FluentTheme.Text))
                     g.DrawString(name, iconFont, nameBrush, new RectangleF(textPosition, textMaxSize), stringFormat);
             }
         }
@@ -1036,8 +1042,8 @@ namespace 窗格
                 path.AddEllipse(bounds);
                 using (var glow = new PathGradientBrush(path))
                 {
-                    glow.CenterColor = Color.FromArgb(38, 220, 242, 255);
-                    glow.SurroundColors = new[] { Color.FromArgb(0, 120, 190, 255) };
+                    glow.CenterColor = FluentTheme.AccentOverlay(FluentTheme.IsDark ? 48 : 36);
+                    glow.SurroundColors = new[] { Color.FromArgb(0, FluentTheme.Accent) };
                     glow.FocusScales = new PointF(0.12f, 0.12f);
                     graphics.FillPath(glow, path);
                 }
@@ -1212,6 +1218,17 @@ namespace 窗格
 
         private void GlobalFenceSettings_Changed(object sender, EventArgs e)
         {
+            if (IsDisposed)
+                return;
+
+            if (InvokeRequired)
+            {
+                if (!IsHandleCreated)
+                    return;
+                BeginInvoke(new EventHandler(GlobalFenceSettings_Changed), sender, e);
+                return;
+            }
+
             var wasMinified = isMinified;
             if (wasMinified && GlobalFenceSettings.HideTitleArea)
             {

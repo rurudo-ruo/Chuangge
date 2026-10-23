@@ -13,6 +13,15 @@ namespace 窗格
         private readonly TableLayoutPanel contentLayout;
         private readonly Label notice;
         private readonly Label titleSizeHint;
+        private readonly CheckBox useSystemTheme;
+        private readonly ComboBox displayMode;
+        private readonly Button accentColorButton;
+        private readonly TrackBar darkOverlayOpacity;
+        private readonly TrackBar lightOverlayOpacity;
+        private readonly Label darkOverlayValue;
+        private readonly Label lightOverlayValue;
+        private Button primaryActionButton;
+        private Color customAccentColor;
 
         public AdvancedSettingsForm()
         {
@@ -32,7 +41,7 @@ namespace 窗格
                 ColumnCount = 1,
                 Dock = DockStyle.Fill,
                 Padding = new Padding(24),
-                RowCount = 5,
+                RowCount = 6,
                 AutoScroll = true
             };
             contentLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -73,7 +82,8 @@ namespace 窗格
                 BackColor = FluentTheme.Surface,
                 Dock = DockStyle.Top,
                 Margin = new Padding(0, 0, 0, 12),
-                Padding = new Padding(16)
+                Padding = new Padding(16),
+                Tag = "FluentSurface"
             };
             var appearanceLayout = new TableLayoutPanel
             {
@@ -137,13 +147,163 @@ namespace 窗格
             appearanceLayout.SetColumnSpan(hideTitles, 2);
             appearanceCard.Controls.Add(appearanceLayout);
 
+            var themeCard = new Panel
+            {
+                AutoSize = true,
+                BackColor = FluentTheme.Surface,
+                Dock = DockStyle.Top,
+                Margin = new Padding(0, 0, 0, 12),
+                Padding = new Padding(16),
+                Tag = "FluentSurface"
+            };
+            var themeLayout = new TableLayoutPanel
+            {
+                AutoSize = true,
+                ColumnCount = 1,
+                Dock = DockStyle.Top,
+                Margin = new Padding(0),
+                RowCount = 6
+            };
+            themeLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            for (var i = 0; i < themeLayout.RowCount; i++)
+                themeLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            var themeHeading = new Label
+            {
+                AutoSize = true,
+                Font = new Font(FluentTheme.BodyFont, FontStyle.Bold),
+                Margin = new Padding(0, 0, 0, 10),
+                Text = "Theme"
+            };
+            useSystemTheme = new CheckBox
+            {
+                AutoSize = true,
+                Margin = new Padding(0, 0, 0, 12),
+                Text = "Use Windows display mode and theme color",
+                Checked = GlobalFenceSettings.UseSystemTheme
+            };
+            var manualThemeLayout = new TableLayoutPanel
+            {
+                AutoSize = true,
+                ColumnCount = 4,
+                Dock = DockStyle.Top,
+                Margin = new Padding(24, 0, 0, 0),
+                RowCount = 1
+            };
+            manualThemeLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            manualThemeLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            manualThemeLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            manualThemeLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            var modeLabel = new Label
+            {
+                Anchor = AnchorStyles.Left,
+                AutoSize = true,
+                Margin = new Padding(0, 4, 8, 0),
+                Text = "Display mode"
+            };
+            displayMode = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0, 0, 16, 0)
+            };
+            displayMode.Items.AddRange(new object[] { "Light", "Dark" });
+            displayMode.SelectedItem = GlobalFenceSettings.DisplayMode;
+            var accentLabel = new Label
+            {
+                Anchor = AnchorStyles.Left,
+                AutoSize = true,
+                Margin = new Padding(0, 4, 8, 0),
+                Text = "Theme color"
+            };
+            customAccentColor = GlobalFenceSettings.CustomAccentColor;
+            accentColorButton = new Button
+            {
+                AutoSize = true,
+                MinimumSize = new Size(104, 30),
+                Margin = new Padding(0),
+                Tag = "FluentAccentPicker"
+            };
+            UpdateAccentColorButton();
+            accentColorButton.Click += AccentColorButton_Click;
+            manualThemeLayout.Controls.Add(modeLabel, 0, 0);
+            manualThemeLayout.Controls.Add(displayMode, 1, 0);
+            manualThemeLayout.Controls.Add(accentLabel, 2, 0);
+            manualThemeLayout.Controls.Add(accentColorButton, 3, 0);
+            themeLayout.Controls.Add(themeHeading, 0, 0);
+            themeLayout.Controls.Add(useSystemTheme, 0, 1);
+            themeLayout.Controls.Add(manualThemeLayout, 0, 2);
+
+            var overlayHeading = new Label
+            {
+                AutoSize = true,
+                Font = new Font(FluentTheme.BodyFont, FontStyle.Bold),
+                Margin = new Padding(0, 16, 0, 8),
+                Text = "Overlay intensity"
+            };
+            var darkOverlayRow = new TableLayoutPanel
+            {
+                AutoSize = true,
+                ColumnCount = 3,
+                Dock = DockStyle.Top,
+                Margin = new Padding(0, 0, 0, 4),
+                RowCount = 1
+            };
+            darkOverlayRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 148));
+            darkOverlayRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            darkOverlayRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 48));
+            var darkOverlayLabel = new Label
+            {
+                Anchor = AnchorStyles.Left,
+                AutoSize = true,
+                Margin = new Padding(0),
+                Text = "Dark mode"
+            };
+            darkOverlayOpacity = CreateOverlaySlider(GlobalFenceSettings.DarkOverlayOpacity);
+            darkOverlayValue = CreateOverlayValueLabel(darkOverlayOpacity.Value);
+            darkOverlayOpacity.ValueChanged += (sender, e) => UpdateOverlayValue(darkOverlayOpacity, darkOverlayValue);
+            darkOverlayRow.Controls.Add(darkOverlayLabel, 0, 0);
+            darkOverlayRow.Controls.Add(darkOverlayOpacity, 1, 0);
+            darkOverlayRow.Controls.Add(darkOverlayValue, 2, 0);
+
+            var lightOverlayRow = new TableLayoutPanel
+            {
+                AutoSize = true,
+                ColumnCount = 3,
+                Dock = DockStyle.Top,
+                Margin = new Padding(0),
+                RowCount = 1
+            };
+            lightOverlayRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 148));
+            lightOverlayRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            lightOverlayRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 48));
+            var lightOverlayLabel = new Label
+            {
+                Anchor = AnchorStyles.Left,
+                AutoSize = true,
+                Margin = new Padding(0),
+                Text = "Light mode"
+            };
+            lightOverlayOpacity = CreateOverlaySlider(GlobalFenceSettings.LightOverlayOpacity);
+            lightOverlayValue = CreateOverlayValueLabel(lightOverlayOpacity.Value);
+            lightOverlayOpacity.ValueChanged += (sender, e) => UpdateOverlayValue(lightOverlayOpacity, lightOverlayValue);
+            lightOverlayRow.Controls.Add(lightOverlayLabel, 0, 0);
+            lightOverlayRow.Controls.Add(lightOverlayOpacity, 1, 0);
+            lightOverlayRow.Controls.Add(lightOverlayValue, 2, 0);
+            themeLayout.Controls.Add(overlayHeading, 0, 3);
+            themeLayout.Controls.Add(darkOverlayRow, 0, 4);
+            themeLayout.Controls.Add(lightOverlayRow, 0, 5);
+            themeCard.Controls.Add(themeLayout);
+            useSystemTheme.CheckedChanged += (sender, e) => UpdateManualThemeEnabled();
+            UpdateManualThemeEnabled();
+
             var storageCard = new Panel
             {
                 AutoSize = true,
                 BackColor = FluentTheme.Surface,
                 Dock = DockStyle.Top,
                 Margin = new Padding(0, 0, 0, 12),
-                Padding = new Padding(16)
+                Padding = new Padding(16),
+                Tag = "FluentSurface"
             };
             var storageLayout = new TableLayoutPanel
             {
@@ -192,6 +352,7 @@ namespace 窗格
                 Anchor = AnchorStyles.Left,
                 ForeColor = FluentTheme.SecondaryText,
                 Margin = new Padding(0, 6, 16, 0),
+                Tag = "FluentSecondaryText",
                 Text = "Fit each fence to its current thumbnail columns and rows:"
             };
             var modifyAllButton = new Button
@@ -225,6 +386,7 @@ namespace 窗格
                 AutoSize = true,
                 ForeColor = FluentTheme.SecondaryText,
                 Margin = new Padding(12, 9, 0, 0),
+                Tag = "FluentSecondaryText",
                 TextAlign = ContentAlignment.MiddleLeft
             };
             folderActions.Controls.Add(openFolderButton);
@@ -254,11 +416,15 @@ namespace 窗格
                 Margin = new Padding(0),
                 Text = "Apply"
             };
+            primaryActionButton = applyButton;
             applyButton.Click += (sender, e) =>
             {
                 try
                 {
-                    GlobalFenceSettings.Update((int)titleSize.Value, hideTitles.Checked);
+                    GlobalFenceSettings.Update((int)titleSize.Value, hideTitles.Checked,
+                        useSystemTheme.Checked, displayMode.SelectedItem as string ?? "Light",
+                        customAccentColor.ToArgb(), darkOverlayOpacity.Value, lightOverlayOpacity.Value);
+                    FluentTheme.ApplyToForm(this, applyButton);
                     statusLabel.Text = "Saved.";
                 }
                 catch (System.Configuration.ConfigurationErrorsException ex)
@@ -283,17 +449,113 @@ namespace 窗格
             footer.Controls.Add(settingActions, 1, 0);
 
             contentLayout.Controls.Add(pageHeader, 0, 0);
-            contentLayout.Controls.Add(appearanceCard, 0, 1);
-            contentLayout.Controls.Add(storageCard, 0, 2);
-            contentLayout.Controls.Add(fitActions, 0, 3);
-            contentLayout.Controls.Add(footer, 0, 4);
+            contentLayout.Controls.Add(themeCard, 0, 1);
+            contentLayout.Controls.Add(appearanceCard, 0, 2);
+            contentLayout.Controls.Add(storageCard, 0, 3);
+            contentLayout.Controls.Add(fitActions, 0, 4);
+            contentLayout.Controls.Add(footer, 0, 5);
             contentLayout.SizeChanged += ContentLayout_SizeChanged;
             Controls.Add(contentLayout);
+            appearanceCard.Tag = "FluentSurface";
+            fitActions.Tag = "FluentSurface";
+            titleSizeHint.Tag = "FluentSecondaryText";
+            notice.Tag = "FluentSecondaryText";
             FluentTheme.ApplyToForm(this, applyButton);
             ContentLayout_SizeChanged(contentLayout, EventArgs.Empty);
+            GlobalFenceSettings.Changed += GlobalFenceSettings_Changed;
+            FormClosed += (sender, e) => GlobalFenceSettings.Changed -= GlobalFenceSettings_Changed;
 
             AcceptButton = applyButton;
             CancelButton = closeButton;
+        }
+
+        private void UpdateManualThemeEnabled()
+        {
+            var enabled = !useSystemTheme.Checked;
+            displayMode.Enabled = enabled;
+            accentColorButton.Enabled = enabled;
+        }
+
+        private static TrackBar CreateOverlaySlider(int value)
+        {
+            return new TrackBar
+            {
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                AutoSize = false,
+                Dock = DockStyle.Fill,
+                LargeChange = 16,
+                Maximum = 255,
+                Minimum = 0,
+                Margin = new Padding(0, 0, 8, 0),
+                SmallChange = 8,
+                TickFrequency = 32,
+                Value = value
+            };
+        }
+
+        private static Label CreateOverlayValueLabel(int opacity)
+        {
+            return new Label
+            {
+                Anchor = AnchorStyles.Right,
+                AutoSize = true,
+                ForeColor = FluentTheme.SecondaryText,
+                Margin = new Padding(0),
+                Text = OpacityToPercent(opacity) + "%"
+            };
+        }
+
+        private static int OpacityToPercent(int opacity)
+        {
+            return (int)Math.Round(opacity * 100.0 / 255);
+        }
+
+        private static void UpdateOverlayValue(TrackBar slider, Label valueLabel)
+        {
+            valueLabel.Text = OpacityToPercent(slider.Value) + "%";
+        }
+
+        private void GlobalFenceSettings_Changed(object sender, EventArgs e)
+        {
+            if (IsDisposed)
+                return;
+
+            if (InvokeRequired)
+            {
+                if (!IsHandleCreated)
+                    return;
+                BeginInvoke(new EventHandler(GlobalFenceSettings_Changed), sender, e);
+                return;
+            }
+
+            FluentTheme.ApplyToForm(this, primaryActionButton);
+            UpdateAccentColorButton();
+        }
+
+        private void UpdateAccentColorButton()
+        {
+            accentColorButton.Text = string.Format("#{0:X2}{1:X2}{2:X2}",
+                customAccentColor.R, customAccentColor.G, customAccentColor.B);
+            accentColorButton.BackColor = customAccentColor;
+            accentColorButton.ForeColor = FluentTheme.GetContrastingText(customAccentColor);
+        }
+
+        private void AccentColorButton_Click(object sender, EventArgs e)
+        {
+            using (var dialog = new ColorDialog
+            {
+                AllowFullOpen = true,
+                AnyColor = true,
+                Color = customAccentColor,
+                FullOpen = true
+            })
+            {
+                if (dialog.ShowDialog(this) != DialogResult.OK)
+                    return;
+
+                customAccentColor = dialog.Color;
+                UpdateAccentColorButton();
+            }
         }
 
         private void ContentLayout_SizeChanged(object sender, EventArgs e)
