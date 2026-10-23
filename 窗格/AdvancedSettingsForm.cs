@@ -10,6 +10,7 @@ namespace 窗格
 {
     internal sealed class AdvancedSettingsForm : Form
     {
+        private static AdvancedSettingsForm currentInstance;
         private readonly TableLayoutPanel contentLayout;
         private readonly Label notice;
         private readonly Label titleSizeHint;
@@ -34,17 +35,48 @@ namespace 窗格
         private Color customAccentColor;
         private Color pointerGlowColor;
 
+        public static void ShowSettings(IWin32Window owner = null)
+        {
+            if (currentInstance == null || currentInstance.IsDisposed)
+                currentInstance = new AdvancedSettingsForm();
+
+            if (currentInstance.Visible)
+            {
+                currentInstance.Activate();
+                return;
+            }
+
+            var workingArea = owner == null
+                ? Screen.FromPoint(Cursor.Position).WorkingArea
+                : Screen.FromHandle(owner.Handle).WorkingArea;
+            var width = Math.Min(820, Math.Max(360, workingArea.Width - 48));
+            var height = Math.Min(860, Math.Max(320, workingArea.Height - 48));
+            currentInstance.MinimumSize = new Size(
+                Math.Min(640, width),
+                Math.Min(600, height));
+            currentInstance.Size = new Size(width, height);
+            currentInstance.StartPosition = FormStartPosition.Manual;
+            currentInstance.Location = new Point(
+                workingArea.Left + (workingArea.Width - currentInstance.Width) / 2,
+                workingArea.Top + (workingArea.Height - currentInstance.Height) / 2);
+
+            if (owner == null)
+                currentInstance.Show();
+            else
+                currentInstance.Show(owner);
+        }
+
         public AdvancedSettingsForm()
         {
             Text = "窗格 - Advanced settings";
-            StartPosition = FormStartPosition.CenterScreen;
+            StartPosition = FormStartPosition.Manual;
             FormBorderStyle = FormBorderStyle.Sizable;
             MaximizeBox = false;
             MinimizeBox = false;
             ShowInTaskbar = false;
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(620, 560);
-            MinimumSize = new Size(600, 540);
+            ClientSize = new Size(820, 860);
+            MinimumSize = new Size(640, 600);
 
             contentLayout = new TableLayoutPanel
             {
@@ -52,7 +84,7 @@ namespace 窗格
                 ColumnCount = 1,
                 Dock = DockStyle.Fill,
                 Padding = new Padding(24),
-                RowCount = 7,
+                RowCount = 6,
                 AutoScroll = true
             };
             contentLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -510,11 +542,11 @@ namespace 窗格
             var closeButton = new Button
             {
                 AutoSize = true,
-                DialogResult = DialogResult.Cancel,
                 MinimumSize = new Size(96, 34),
                 Margin = new Padding(0, 0, 8, 0),
                 Text = "Close"
             };
+            closeButton.Click += (sender, e) => Close();
             var applyButton = new Button
             {
                 AutoSize = true,
@@ -549,7 +581,7 @@ namespace 窗格
                 AutoSize = true,
                 ColumnCount = 2,
                 Dock = DockStyle.Top,
-                Margin = new Padding(0),
+                Margin = new Padding(0, 8, 0, 0),
                 RowCount = 1
             };
             footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -563,9 +595,20 @@ namespace 窗格
             contentLayout.Controls.Add(appearanceCard, 0, 3);
             contentLayout.Controls.Add(storageCard, 0, 4);
             contentLayout.Controls.Add(fitActions, 0, 5);
-            contentLayout.Controls.Add(footer, 0, 6);
             contentLayout.SizeChanged += ContentLayout_SizeChanged;
-            Controls.Add(contentLayout);
+            var settingsLayout = new TableLayoutPanel
+            {
+                ColumnCount = 1,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0),
+                RowCount = 2
+            };
+            settingsLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            settingsLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            settingsLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            settingsLayout.Controls.Add(contentLayout, 0, 0);
+            settingsLayout.Controls.Add(footer, 0, 1);
+            Controls.Add(settingsLayout);
             appearanceCard.Tag = "FluentSurface";
             fitActions.Tag = "FluentSurface";
             titleSizeHint.Tag = "FluentSecondaryText";
@@ -575,6 +618,11 @@ namespace 窗格
             ContentLayout_SizeChanged(contentLayout, EventArgs.Empty);
             GlobalFenceSettings.Changed += GlobalFenceSettings_Changed;
             FormClosed += (sender, e) => GlobalFenceSettings.Changed -= GlobalFenceSettings_Changed;
+            FormClosed += (sender, e) =>
+            {
+                if (ReferenceEquals(currentInstance, this))
+                    currentInstance = null;
+            };
 
             AcceptButton = applyButton;
             CancelButton = closeButton;

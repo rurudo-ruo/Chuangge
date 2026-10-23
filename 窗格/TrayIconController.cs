@@ -42,10 +42,7 @@ namespace 窗格
 
         private static void AdvancedSettings_Click(object sender, EventArgs e)
         {
-            using (var settings = new AdvancedSettingsForm())
-            {
-                settings.ShowDialog();
-            }
+            AdvancedSettingsForm.ShowSettings();
         }
 
         private static void Exit_Click(object sender, EventArgs e)

@@ -1195,10 +1195,7 @@ namespace 窗格
 
         private void titleSizeToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            using (var dialog = new AdvancedSettingsForm())
-            {
-                dialog.ShowDialog(this);
-            }
+            AdvancedSettingsForm.ShowSettings(this);
         }
 
         private void FenceWindow_MouseClick(object sender, MouseEventArgs e)
