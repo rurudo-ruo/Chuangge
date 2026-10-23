@@ -87,6 +87,7 @@ namespace 窗格
             appContextMenu.Font = FluentTheme.BodyFont;
             foreach (ToolStripItem item in appContextMenu.Items)
                 item.Padding = new Padding(10, 5, 10, 5);
+            appContextMenu.Opened += AppContextMenu_Opened;
             DropShadow.ApplyShadows(this);
             BlurUtil.EnableBlur(Handle);
             WindowUtil.HideFromAltTab(Handle);
@@ -307,6 +308,12 @@ namespace 窗格
             deleteItemToolStripMenuItem.Visible = hoveringItem != null;
             deleteItemToolStripMenuItem.Text = missingItem ? "Remove missing item" : removeItemText;
             openMissingParentItem.Enabled = missingItem && GetExistingParentDirectory(hoveringItem) != null;
+        }
+
+        private void AppContextMenu_Opened(object sender, EventArgs e)
+        {
+            WindowUtil.ApplyRoundedCorners(appContextMenu.Handle, appContextMenu.Width,
+                appContextMenu.Height, LogicalToDeviceUnits(8));
         }
 
         private void FenceWindow_DragEnter(object sender, DragEventArgs e)
@@ -934,7 +941,6 @@ namespace 窗格
             var icon = entry.ExtractIcon(thumbnailProvider, iconSize);
             var name = entry.Name;
 
-            var textPosition = new PointF(x, y + iconSize + LogicalToDeviceUnits(5));
             var textMaxSize = new SizeF(itemWidth, textHeight);
 
             using (var stringFormat = new StringFormat
@@ -947,12 +953,18 @@ namespace 窗格
             {
                 var textSize = g.MeasureString(name, iconFont, textMaxSize, stringFormat);
                 var inset = LogicalToDeviceUnits(4);
-                var cardRect = new Rectangle(x - inset, y - inset,
-                    itemWidth + inset * 2, iconSize + (int)textSize.Height + LogicalToDeviceUnits(12));
+                var itemHeight = iconSize + LogicalToDeviceUnits(logicalItemPadding) + textHeight;
+                var cardRect = new Rectangle(x - inset, y,
+                    itemWidth + inset * 2, itemHeight);
+                var iconTextGap = LogicalToDeviceUnits(5);
+                var contentHeight = iconSize + iconTextGap + (int)textSize.Height;
+                var contentOffset = Math.Max(0, (itemHeight - contentHeight) / 2);
+                var iconY = y + contentOffset;
+                var textPosition = new PointF(x, iconY + iconSize + iconTextGap);
 
                 var mousePos = PointToClient(MousePosition);
                 var mouseOver = mousePos.X >= x && mousePos.Y >= y
-                    && mousePos.X < x + itemWidth && mousePos.Y < y + iconSize + textHeight;
+                    && mousePos.X < x + itemWidth && mousePos.Y < y + itemHeight;
 
                 if (mouseOver)
                 {
@@ -985,7 +997,7 @@ namespace 窗格
                         g.DrawPath(borderPen, cardPath);
                 }
 
-                g.DrawIcon(icon, new Rectangle(x + (itemWidth - iconSize) / 2, y, iconSize, iconSize));
+                g.DrawIcon(icon, new Rectangle(x + (itemWidth - iconSize) / 2, iconY, iconSize, iconSize));
                 var shadowDistance = LogicalToDeviceUnits(3) * (logicalShadowDistance / 3);
                 g.DrawString(name, iconFont, shadowBrush,
                     new RectangleF(textPosition.Move(shadowDistance, shadowDistance), textMaxSize), stringFormat);

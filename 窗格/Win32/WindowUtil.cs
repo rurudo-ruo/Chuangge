@@ -42,6 +42,37 @@ namespace 窗格.Win32
         [DllImport("user32.dll")]
         public static extern bool EndDeferWindowPos(IntPtr hWinPosInfo);
 
+        [DllImport("gdi32.dll", EntryPoint = "CreateRoundRectRgn")]
+        private static extern IntPtr CreateRoundRectRgn(
+            int left, int top, int right, int bottom, int widthEllipse, int heightEllipse);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool redraw);
+
+        [DllImport("gdi32.dll")]
+        private static extern bool DeleteObject(IntPtr hObject);
+
+        public static bool ApplyRoundedCorners(IntPtr hWnd, int width, int height, int radius)
+        {
+            const int dwmWindowCornerPreference = 33;
+            const int dwmRound = 2;
+            var cornerPreference = dwmRound;
+            if (DropShadow.DwmSetWindowAttribute(hWnd, dwmWindowCornerPreference,
+                ref cornerPreference, sizeof(int)) == 0)
+                return true;
+
+            var diameter = Math.Max(1, radius * 2);
+            var region = CreateRoundRectRgn(0, 0, width + 1, height + 1, diameter, diameter);
+            if (region == IntPtr.Zero)
+                return false;
+
+            if (SetWindowRgn(hWnd, region, true) != 0)
+                return true;
+
+            DeleteObject(region);
+            return false;
+        }
+
         [DllImport("user32.dll")]
         public static extern IntPtr SetParent(IntPtr hWndChild, IntPtr hWndNewParent);
         [DllImport("user32.dll", SetLastError = true)]

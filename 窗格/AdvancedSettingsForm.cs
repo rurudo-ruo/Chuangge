@@ -17,7 +17,7 @@ namespace 窗格
         public AdvancedSettingsForm()
         {
             Text = "窗格 - Advanced settings";
-            StartPosition = FormStartPosition.CenterParent;
+            StartPosition = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.Sizable;
             MaximizeBox = false;
             MinimizeBox = false;
