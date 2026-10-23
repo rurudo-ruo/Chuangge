@@ -20,8 +20,19 @@ namespace 窗格
         private readonly TrackBar lightOverlayOpacity;
         private readonly Label darkOverlayValue;
         private readonly Label lightOverlayValue;
+        private readonly CheckBox glowEffectsEnabled;
+        private readonly Button pointerGlowColorButton;
+        private readonly TrackBar pointerGlowIntensity;
+        private readonly TrackBar pointerGlowRadius;
+        private readonly TrackBar iconGlowIntensity;
+        private readonly TrackBar iconGlowRadius;
+        private readonly Label pointerGlowIntensityValue;
+        private readonly Label pointerGlowRadiusValue;
+        private readonly Label iconGlowIntensityValue;
+        private readonly Label iconGlowRadiusValue;
         private Button primaryActionButton;
         private Color customAccentColor;
+        private Color pointerGlowColor;
 
         public AdvancedSettingsForm()
         {
@@ -41,7 +52,7 @@ namespace 窗格
                 ColumnCount = 1,
                 Dock = DockStyle.Fill,
                 Padding = new Padding(24),
-                RowCount = 6,
+                RowCount = 7,
                 AutoScroll = true
             };
             contentLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -296,6 +307,101 @@ namespace 窗格
             useSystemTheme.CheckedChanged += (sender, e) => UpdateManualThemeEnabled();
             UpdateManualThemeEnabled();
 
+            var glowCard = new Panel
+            {
+                AutoSize = true,
+                BackColor = FluentTheme.Surface,
+                Dock = DockStyle.Top,
+                Margin = new Padding(0, 0, 0, 12),
+                Padding = new Padding(16),
+                Tag = "FluentSurface"
+            };
+            var glowLayout = new TableLayoutPanel
+            {
+                AutoSize = true,
+                ColumnCount = 1,
+                Dock = DockStyle.Top,
+                Margin = new Padding(0),
+                RowCount = 7
+            };
+            glowLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            for (var i = 0; i < glowLayout.RowCount; i++)
+                glowLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            var glowHeading = new Label
+            {
+                AutoSize = true,
+                Font = new Font(FluentTheme.BodyFont, FontStyle.Bold),
+                Margin = new Padding(0, 0, 0, 10),
+                Text = "Glow effects"
+            };
+            glowEffectsEnabled = new CheckBox
+            {
+                AutoSize = true,
+                Margin = new Padding(0, 0, 0, 8),
+                Text = "Enable pointer and icon glow",
+                Checked = GlobalFenceSettings.GlowEffectsEnabled
+            };
+            var pointerColorRow = new TableLayoutPanel
+            {
+                AutoSize = true,
+                ColumnCount = 2,
+                Dock = DockStyle.Top,
+                Margin = new Padding(0, 0, 0, 4),
+                RowCount = 1
+            };
+            pointerColorRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            pointerColorRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            var pointerColorLabel = new Label
+            {
+                Anchor = AnchorStyles.Left,
+                AutoSize = true,
+                Margin = new Padding(0, 4, 8, 4),
+                Text = "Pointer highlight color"
+            };
+            pointerGlowColor = GlobalFenceSettings.PointerGlowColor;
+            pointerGlowColorButton = new Button
+            {
+                AutoSize = true,
+                MinimumSize = new Size(104, 30),
+                Margin = new Padding(0),
+                Tag = "FluentGlowColorPicker"
+            };
+            pointerGlowColorButton.Click += PointerGlowColorButton_Click;
+            UpdatePointerGlowColorButton();
+            pointerColorRow.Controls.Add(pointerColorLabel, 0, 0);
+            pointerColorRow.Controls.Add(pointerGlowColorButton, 1, 0);
+
+            pointerGlowIntensity = CreateGlowSlider(0, 100, GlobalFenceSettings.PointerGlowIntensity, 10);
+            pointerGlowIntensityValue = CreateGlowValueLabel(pointerGlowIntensity.Value, "%");
+            pointerGlowIntensity.ValueChanged += (sender, e) =>
+                UpdateGlowValue(pointerGlowIntensity, pointerGlowIntensityValue, "%");
+            pointerGlowRadius = CreateGlowSlider(32, 128, GlobalFenceSettings.PointerGlowRadius, 16);
+            pointerGlowRadiusValue = CreateGlowValueLabel(pointerGlowRadius.Value, " px");
+            pointerGlowRadius.ValueChanged += (sender, e) =>
+                UpdateGlowValue(pointerGlowRadius, pointerGlowRadiusValue, " px");
+            iconGlowIntensity = CreateGlowSlider(0, 100, GlobalFenceSettings.IconGlowIntensity, 10);
+            iconGlowIntensityValue = CreateGlowValueLabel(iconGlowIntensity.Value, "%");
+            iconGlowIntensity.ValueChanged += (sender, e) =>
+                UpdateGlowValue(iconGlowIntensity, iconGlowIntensityValue, "%");
+            iconGlowRadius = CreateGlowSlider(2, 18, GlobalFenceSettings.IconGlowRadius, 2);
+            iconGlowRadiusValue = CreateGlowValueLabel(iconGlowRadius.Value, " px");
+            iconGlowRadius.ValueChanged += (sender, e) =>
+                UpdateGlowValue(iconGlowRadius, iconGlowRadiusValue, " px");
+            glowLayout.Controls.Add(glowHeading, 0, 0);
+            glowLayout.Controls.Add(glowEffectsEnabled, 0, 1);
+            glowLayout.Controls.Add(pointerColorRow, 0, 2);
+            glowLayout.Controls.Add(CreateGlowSliderRow("Pointer highlight intensity",
+                pointerGlowIntensity, pointerGlowIntensityValue), 0, 3);
+            glowLayout.Controls.Add(CreateGlowSliderRow("Pointer highlight size",
+                pointerGlowRadius, pointerGlowRadiusValue), 0, 4);
+            glowLayout.Controls.Add(CreateGlowSliderRow("Icon glow intensity",
+                iconGlowIntensity, iconGlowIntensityValue), 0, 5);
+            glowLayout.Controls.Add(CreateGlowSliderRow("Icon glow spread",
+                iconGlowRadius, iconGlowRadiusValue), 0, 6);
+            glowCard.Controls.Add(glowLayout);
+            glowEffectsEnabled.CheckedChanged += (sender, e) => UpdateGlowControlsEnabled();
+            UpdateGlowControlsEnabled();
+
             var storageCard = new Panel
             {
                 AutoSize = true,
@@ -423,8 +529,11 @@ namespace 窗格
                 {
                     GlobalFenceSettings.Update((int)titleSize.Value, hideTitles.Checked,
                         useSystemTheme.Checked, displayMode.SelectedItem as string ?? "Light",
-                        customAccentColor.ToArgb(), darkOverlayOpacity.Value, lightOverlayOpacity.Value);
+                        customAccentColor.ToArgb(), darkOverlayOpacity.Value, lightOverlayOpacity.Value,
+                        glowEffectsEnabled.Checked, pointerGlowColor.ToArgb(), pointerGlowIntensity.Value,
+                        pointerGlowRadius.Value, iconGlowIntensity.Value, iconGlowRadius.Value);
                     FluentTheme.ApplyToForm(this, applyButton);
+                    UpdatePointerGlowColorButton();
                     statusLabel.Text = "Saved.";
                 }
                 catch (System.Configuration.ConfigurationErrorsException ex)
@@ -450,10 +559,11 @@ namespace 窗格
 
             contentLayout.Controls.Add(pageHeader, 0, 0);
             contentLayout.Controls.Add(themeCard, 0, 1);
-            contentLayout.Controls.Add(appearanceCard, 0, 2);
-            contentLayout.Controls.Add(storageCard, 0, 3);
-            contentLayout.Controls.Add(fitActions, 0, 4);
-            contentLayout.Controls.Add(footer, 0, 5);
+            contentLayout.Controls.Add(glowCard, 0, 2);
+            contentLayout.Controls.Add(appearanceCard, 0, 3);
+            contentLayout.Controls.Add(storageCard, 0, 4);
+            contentLayout.Controls.Add(fitActions, 0, 5);
+            contentLayout.Controls.Add(footer, 0, 6);
             contentLayout.SizeChanged += ContentLayout_SizeChanged;
             Controls.Add(contentLayout);
             appearanceCard.Tag = "FluentSurface";
@@ -461,6 +571,7 @@ namespace 窗格
             titleSizeHint.Tag = "FluentSecondaryText";
             notice.Tag = "FluentSecondaryText";
             FluentTheme.ApplyToForm(this, applyButton);
+            UpdatePointerGlowColorButton();
             ContentLayout_SizeChanged(contentLayout, EventArgs.Empty);
             GlobalFenceSettings.Changed += GlobalFenceSettings_Changed;
             FormClosed += (sender, e) => GlobalFenceSettings.Changed -= GlobalFenceSettings_Changed;
@@ -491,6 +602,75 @@ namespace 窗格
                 TickFrequency = 32,
                 Value = value
             };
+        }
+
+        private static TrackBar CreateGlowSlider(int minimum, int maximum, int value, int tickFrequency)
+        {
+            return new TrackBar
+            {
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                AutoSize = false,
+                Dock = DockStyle.Fill,
+                LargeChange = tickFrequency,
+                Maximum = maximum,
+                Minimum = minimum,
+                Margin = new Padding(0, 0, 8, 0),
+                SmallChange = Math.Max(1, tickFrequency / 2),
+                TickFrequency = tickFrequency,
+                Value = Math.Max(minimum, Math.Min(maximum, value))
+            };
+        }
+
+        private static Label CreateGlowValueLabel(int value, string suffix)
+        {
+            return new Label
+            {
+                Anchor = AnchorStyles.Right,
+                AutoSize = true,
+                ForeColor = FluentTheme.SecondaryText,
+                Margin = new Padding(0),
+                Text = value + suffix
+            };
+        }
+
+        private static TableLayoutPanel CreateGlowSliderRow(string labelText, TrackBar slider, Label valueLabel)
+        {
+            var row = new TableLayoutPanel
+            {
+                AutoSize = true,
+                ColumnCount = 3,
+                Dock = DockStyle.Top,
+                Margin = new Padding(0, 0, 0, 4),
+                RowCount = 1
+            };
+            row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 188));
+            row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 48));
+            row.Controls.Add(new Label
+            {
+                Anchor = AnchorStyles.Left,
+                AutoSize = true,
+                Margin = new Padding(0),
+                Text = labelText
+            }, 0, 0);
+            row.Controls.Add(slider, 1, 0);
+            row.Controls.Add(valueLabel, 2, 0);
+            return row;
+        }
+
+        private static void UpdateGlowValue(TrackBar slider, Label valueLabel, string suffix)
+        {
+            valueLabel.Text = slider.Value + suffix;
+        }
+
+        private void UpdateGlowControlsEnabled()
+        {
+            var enabled = glowEffectsEnabled.Checked;
+            pointerGlowColorButton.Enabled = enabled;
+            pointerGlowIntensity.Enabled = enabled;
+            pointerGlowRadius.Enabled = enabled;
+            iconGlowIntensity.Enabled = enabled;
+            iconGlowRadius.Enabled = enabled;
         }
 
         private static Label CreateOverlayValueLabel(int opacity)
@@ -530,6 +710,7 @@ namespace 窗格
 
             FluentTheme.ApplyToForm(this, primaryActionButton);
             UpdateAccentColorButton();
+            UpdatePointerGlowColorButton();
         }
 
         private void UpdateAccentColorButton()
@@ -555,6 +736,32 @@ namespace 窗格
 
                 customAccentColor = dialog.Color;
                 UpdateAccentColorButton();
+            }
+        }
+
+        private void UpdatePointerGlowColorButton()
+        {
+            pointerGlowColorButton.Text = string.Format("#{0:X2}{1:X2}{2:X2}",
+                pointerGlowColor.R, pointerGlowColor.G, pointerGlowColor.B);
+            pointerGlowColorButton.BackColor = pointerGlowColor;
+            pointerGlowColorButton.ForeColor = FluentTheme.GetContrastingText(pointerGlowColor);
+        }
+
+        private void PointerGlowColorButton_Click(object sender, EventArgs e)
+        {
+            using (var dialog = new ColorDialog
+            {
+                AllowFullOpen = true,
+                AnyColor = true,
+                Color = pointerGlowColor,
+                FullOpen = true
+            })
+            {
+                if (dialog.ShowDialog(this) != DialogResult.OK)
+                    return;
+
+                pointerGlowColor = dialog.Color;
+                UpdatePointerGlowColorButton();
             }
         }
 

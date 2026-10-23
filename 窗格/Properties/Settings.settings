@@ -25,5 +25,23 @@
     <Setting Name="LightOverlayOpacity" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">174</Value>
     </Setting>
+    <Setting Name="GlowEffectsEnabled" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="PointerGlowColor" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">-779</Value>
+    </Setting>
+    <Setting Name="PointerGlowIntensity" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">100</Value>
+    </Setting>
+    <Setting Name="PointerGlowRadius" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">76</Value>
+    </Setting>
+    <Setting Name="IconGlowIntensity" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">80</Value>
+    </Setting>
+    <Setting Name="IconGlowRadius" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">9</Value>
+    </Setting>
   </Settings>
 </SettingsFile>

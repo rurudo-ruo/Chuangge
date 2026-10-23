@@ -42,13 +42,27 @@ namespace 窗格
 
         public static int LightOverlayOpacity => Math.Max(0, Math.Min(255, Settings.Default.LightOverlayOpacity));
 
+        public static bool GlowEffectsEnabled => Settings.Default.GlowEffectsEnabled;
+
+        public static Color PointerGlowColor => Color.FromArgb(Settings.Default.PointerGlowColor);
+
+        public static int PointerGlowIntensity => Math.Max(0, Math.Min(100, Settings.Default.PointerGlowIntensity));
+
+        public static int PointerGlowRadius => Math.Max(32, Math.Min(128, Settings.Default.PointerGlowRadius));
+
+        public static int IconGlowIntensity => Math.Max(0, Math.Min(100, Settings.Default.IconGlowIntensity));
+
+        public static int IconGlowRadius => Math.Max(2, Math.Min(18, Settings.Default.IconGlowRadius));
+
         public static bool IsDisplayModeDark(string displayMode)
         {
             return string.Equals(displayMode, "Dark", StringComparison.OrdinalIgnoreCase);
         }
 
         public static void Update(int titleHeight, bool hideTitleArea, bool useSystemTheme,
-            string displayMode, int customAccentColor, int darkOverlayOpacity, int lightOverlayOpacity)
+            string displayMode, int customAccentColor, int darkOverlayOpacity, int lightOverlayOpacity,
+            bool glowEffectsEnabled, int pointerGlowColor, int pointerGlowIntensity, int pointerGlowRadius,
+            int iconGlowIntensity, int iconGlowRadius)
         {
             Settings.Default.GlobalTitleHeight = Math.Max(16, Math.Min(100, titleHeight));
             Settings.Default.HideTitleArea = hideTitleArea;
@@ -57,6 +71,12 @@ namespace 窗格
             Settings.Default.CustomAccentColor = customAccentColor;
             Settings.Default.DarkOverlayOpacity = Math.Max(0, Math.Min(255, darkOverlayOpacity));
             Settings.Default.LightOverlayOpacity = Math.Max(0, Math.Min(255, lightOverlayOpacity));
+            Settings.Default.GlowEffectsEnabled = glowEffectsEnabled;
+            Settings.Default.PointerGlowColor = pointerGlowColor;
+            Settings.Default.PointerGlowIntensity = Math.Max(0, Math.Min(100, pointerGlowIntensity));
+            Settings.Default.PointerGlowRadius = Math.Max(32, Math.Min(128, pointerGlowRadius));
+            Settings.Default.IconGlowIntensity = Math.Max(0, Math.Min(100, iconGlowIntensity));
+            Settings.Default.IconGlowRadius = Math.Max(2, Math.Min(18, iconGlowRadius));
             Settings.Default.Save();
             ApplyTheme();
             Changed?.Invoke(null, EventArgs.Empty);

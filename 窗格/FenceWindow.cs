@@ -904,7 +904,7 @@ namespace 窗格
                 }
             }
 
-            if (pointerInside)
+            if (GlobalFenceSettings.GlowEffectsEnabled && pointerInside)
                 DrawPointerGlow(graphics);
 
             // Click handlers
@@ -1001,14 +1001,16 @@ namespace 窗格
                 }
 
                 var iconRect = new Rectangle(x + (itemWidth - iconSize) / 2, iconY, iconSize, iconSize);
-                var glowRadius = LogicalToDeviceUnits(9);
-                using (var iconLayer = new Bitmap(iconSize + glowRadius * 2, iconSize + glowRadius * 2))
-                using (var iconGraphics = Graphics.FromImage(iconLayer))
+                if (GlobalFenceSettings.GlowEffectsEnabled && GlobalFenceSettings.IconGlowIntensity > 0)
                 {
-                    iconGraphics.DrawIcon(icon, new Rectangle(glowRadius, glowRadius, iconSize, iconSize));
-                    using (var iconGlow = FluentTheme.CreateBlurredColor(iconLayer, glowRadius, 205))
+                    var glowRadius = LogicalToDeviceUnits(GlobalFenceSettings.IconGlowRadius);
+                    var glowOpacity = (int)Math.Round(GlobalFenceSettings.IconGlowIntensity * 255.0 / 100);
+                    using (var iconLayer = new Bitmap(iconSize + glowRadius * 2, iconSize + glowRadius * 2))
+                    using (var iconGraphics = Graphics.FromImage(iconLayer))
                     {
-                        g.DrawImageUnscaled(iconGlow, iconRect.X - glowRadius, iconRect.Y - glowRadius);
+                        iconGraphics.DrawIcon(icon, new Rectangle(glowRadius, glowRadius, iconSize, iconSize));
+                        using (var iconGlow = FluentTheme.CreateBlurredColor(iconLayer, glowRadius, glowOpacity))
+                            g.DrawImageUnscaled(iconGlow, iconRect.X - glowRadius, iconRect.Y - glowRadius);
                     }
                 }
                 g.DrawIcon(icon, iconRect);
@@ -1056,7 +1058,7 @@ namespace 窗格
 
         private void DrawPointerGlow(Graphics graphics)
         {
-            var radius = LogicalToDeviceUnits(76);
+            var radius = LogicalToDeviceUnits(GlobalFenceSettings.PointerGlowRadius);
             var bounds = new Rectangle(pointerPosition.X - radius, pointerPosition.Y - radius,
                 radius * 2, radius * 2);
             using (var path = new GraphicsPath())
@@ -1064,10 +1066,10 @@ namespace 窗格
                 path.AddEllipse(bounds);
                 using (var glow = new PathGradientBrush(path))
                 {
-                    var highlight = FluentTheme.IsDark
-                        ? Color.White
-                        : Color.FromArgb(255, 255, 252, 245);
-                    glow.CenterColor = Color.FromArgb(FluentTheme.IsDark ? 42 : 30, highlight);
+                    var highlight = GlobalFenceSettings.PointerGlowColor;
+                    var baseOpacity = FluentTheme.IsDark ? 42 : 30;
+                    var opacity = (int)Math.Round(baseOpacity * GlobalFenceSettings.PointerGlowIntensity / 100.0);
+                    glow.CenterColor = Color.FromArgb(opacity, highlight);
                     glow.SurroundColors = new[] { Color.FromArgb(0, highlight) };
                     glow.FocusScales = new PointF(0.12f, 0.12f);
                     graphics.FillPath(glow, path);

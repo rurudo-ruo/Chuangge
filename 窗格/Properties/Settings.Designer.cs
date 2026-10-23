@@ -106,5 +106,77 @@ namespace 窗格.Properties {
                 this["LightOverlayOpacity"] = value;
             }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool GlowEffectsEnabled {
+            get {
+                return ((bool)(this["GlowEffectsEnabled"]));
+            }
+            set {
+                this["GlowEffectsEnabled"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("-779")]
+        public int PointerGlowColor {
+            get {
+                return ((int)(this["PointerGlowColor"]));
+            }
+            set {
+                this["PointerGlowColor"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("100")]
+        public int PointerGlowIntensity {
+            get {
+                return ((int)(this["PointerGlowIntensity"]));
+            }
+            set {
+                this["PointerGlowIntensity"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("76")]
+        public int PointerGlowRadius {
+            get {
+                return ((int)(this["PointerGlowRadius"]));
+            }
+            set {
+                this["PointerGlowRadius"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("80")]
+        public int IconGlowIntensity {
+            get {
+                return ((int)(this["IconGlowIntensity"]));
+            }
+            set {
+                this["IconGlowIntensity"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("9")]
+        public int IconGlowRadius {
+            get {
+                return ((int)(this["IconGlowRadius"]));
+            }
+            set {
+                this["IconGlowRadius"] = value;
+            }
+        }
     }
 }
