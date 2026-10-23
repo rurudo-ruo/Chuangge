@@ -42,6 +42,8 @@ The interface uses Fluent Design as a visual baseline without adding a UI-framew
 
 The application continues to use `%LOCALAPPDATA%\NoFences` so existing layouts and contents remain available. It reads the original XML metadata format, JSON records in `Fences\<id>\fence.json`, and XML metadata in `Backup_XML_*` directories. Alternate-format sources are read without being changed. Removing a fence deletes its saved metadata in the XML and JSON locations and matching recovery-backup records.
 
+Startup warnings for unreadable fence data are suppressed while the same set of paths remains skipped. The warning is shown again if the paths change, and its suppression state is cleared after a clean load. To inspect the files, open Advanced Settings and use the fence data folder. Successfully loading JSON or backup data does not trigger a recurring startup dialog.
+
 ## License and attribution
 
 This repository is a personal fork of [Twometer's NoFences](https://github.com/Twometer/NoFences). The project is distributed under the MIT License. The original copyright and license notice are retained; changes in this fork are maintained by **rurudo**. See [LICENSE](LICENSE).

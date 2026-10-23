@@ -1,7 +1,10 @@
 ﻿using 窗格.Model;
 using System;
+using System.Configuration;
+using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
+using 窗格.Properties;
 using 窗格.Win32;
 
 namespace 窗格
@@ -31,28 +34,53 @@ namespace 窗格
                         if (Application.OpenForms.Count == 0)
                             FenceManager.Instance.CreateFence("First fence");
 
-                        if (loadResult.LoadedFromJson > 0 || loadResult.LoadedFromBackup > 0 || loadResult.SkippedPaths.Count > 0)
+                        var skippedPaths = loadResult.SkippedPaths
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+                        string settingsError;
+                        if (ShouldShowSkippedPathsWarning(skippedPaths, out settingsError))
                         {
-                            var messages = new System.Collections.Generic.List<string>();
-                            if (loadResult.LoadedFromJson > 0 || loadResult.LoadedFromBackup > 0)
+                            var message = "Some fence data could not be loaded from these paths:"
+                                + Environment.NewLine + string.Join(Environment.NewLine, skippedPaths)
+                                + Environment.NewLine + Environment.NewLine
+                                + "To inspect the data, open Advanced Settings and use the fence data folder. "
+                                + "This warning will not repeat unless the skipped paths change or a clean load occurs first.";
+                            if (settingsError != null)
                             {
-                                messages.Add("Loaded " + loadResult.LoadedFromJson + " fence(s) from JSON storage and "
-                                    + loadResult.LoadedFromBackup + " fence(s) from XML backups. Original source files were left untouched.");
+                                message += Environment.NewLine + Environment.NewLine
+                                    + "The warning preference could not be saved, so this message may appear again."
+                                    + Environment.NewLine + settingsError;
                             }
 
-                            if (loadResult.SkippedPaths.Count > 0)
-                            {
-                                messages.Add("Some fence data could not be loaded from these paths:"
-                                    + Environment.NewLine + string.Join(Environment.NewLine, loadResult.SkippedPaths));
-                            }
-
-                            var message = string.Join(Environment.NewLine + Environment.NewLine, messages);
                             MessageBox.Show(message, "窗格", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         }
 
                         Application.Run();
                     }
                 }
+            }
+        }
+
+        private static bool ShouldShowSkippedPathsWarning(System.Collections.Generic.IList<string> skippedPaths, out string settingsError)
+        {
+            settingsError = null;
+            var signature = string.Join(Environment.NewLine, skippedPaths);
+
+            try
+            {
+                var settings = Settings.Default;
+                if (string.Equals(settings.LastSkippedFencePaths, signature, StringComparison.OrdinalIgnoreCase))
+                    return false;
+
+                settings.LastSkippedFencePaths = signature;
+                settings.Save();
+                return skippedPaths.Count > 0;
+            }
+            catch (ConfigurationErrorsException ex)
+            {
+                settingsError = ex.Message;
+                return skippedPaths.Count > 0;
             }
         }
 

@@ -178,5 +178,17 @@ namespace 窗格.Properties {
                 this["IconGlowRadius"] = value;
             }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string LastSkippedFencePaths {
+            get {
+                return ((string)(this["LastSkippedFencePaths"]));
+            }
+            set {
+                this["LastSkippedFencePaths"] = value;
+            }
+        }
     }
 }
