@@ -21,6 +21,7 @@ namespace 窗格
         private const int logicalIconSize = 32;
         private const int logicalTextHeight = 36;
         private const int logicalItemPadding = 12;
+        private const float logicalIconFontSize = 9;
 
         private readonly FenceInfo fenceInfo;
 
@@ -43,6 +44,7 @@ namespace 窗格
         private int dragInsertionIndex = -1;
         private Point pointerPosition;
         private bool pointerInside;
+        private bool removedFromStorage;
 
         private int scrollHeight;
         private int scrollOffset;
@@ -69,8 +71,9 @@ namespace 窗格
         private void ReloadFonts()
         {
             var titleSize = logicalTitleHeight / 2.0f;
+            var iconFontSize = logicalIconFontSize * GlobalFenceSettings.ContentScalePercent / 100.0f;
             var newTitleFont = new Font("Segoe UI", titleSize, FontStyle.Regular, GraphicsUnit.Point);
-            var newIconFont = new Font("Segoe UI", 9, FontStyle.Regular, GraphicsUnit.Point);
+            var newIconFont = new Font("Segoe UI", iconFontSize, FontStyle.Regular, GraphicsUnit.Point);
             var oldTitleFont = titleFont;
             var oldIconFont = iconFont;
             titleFont = newTitleFont;
@@ -238,6 +241,36 @@ namespace 窗格
             base.OnFormClosed(e);
         }
 
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            base.OnFormClosing(e);
+            if (e.Cancel || removedFromStorage)
+                return;
+
+            try
+            {
+                fenceInfo.PosX = Location.X;
+                fenceInfo.PosY = Location.Y;
+                fenceInfo.Width = Width;
+                fenceInfo.Height = isMinified ? prevHeight : Height;
+                Save();
+            }
+            catch (IOException ex)
+            {
+                e.Cancel = true;
+                MessageBox.Show(this, "Could not save this fence before closing. The fence was kept open to protect its saved data."
+                    + Environment.NewLine + ex.Message, "Fence could not be saved",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                e.Cancel = true;
+                MessageBox.Show(this, "Could not save this fence before closing. The fence was kept open to protect its saved data."
+                    + Environment.NewLine + ex.Message, "Fence could not be saved",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         private void exitToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (MessageBox.Show(this,
@@ -247,6 +280,7 @@ namespace 窗格
                 try
                 {
                     FenceManager.Instance.RemoveFence(fenceInfo);
+                    removedFromStorage = true;
                     Close();
                 }
                 catch (IOException ex)
@@ -682,10 +716,10 @@ namespace 窗格
             if (fenceInfo.Files.Count == 0)
                 return 0;
 
-            var itemPadding = LogicalToDeviceUnits(logicalItemPadding);
-            var itemWidth = LogicalToDeviceUnits(logicalItemWidth);
-            var iconSize = LogicalToDeviceUnits(logicalIconSize);
-            var textHeight = LogicalToDeviceUnits(logicalTextHeight);
+            var itemPadding = ContentToDeviceUnits(logicalItemPadding);
+            var itemWidth = ContentToDeviceUnits(logicalItemWidth);
+            var iconSize = ContentToDeviceUnits(logicalIconSize);
+            var textHeight = ContentToDeviceUnits(logicalTextHeight);
             var itemHeight = iconSize + itemPadding + textHeight;
             var rowTop = GetItemBounds(0).Top;
             var closestRowDistance = int.MaxValue;
@@ -726,10 +760,10 @@ namespace 窗格
 
         private Rectangle GetItemBounds(int index)
         {
-            var itemPadding = LogicalToDeviceUnits(logicalItemPadding);
-            var itemWidth = LogicalToDeviceUnits(logicalItemWidth);
-            var iconSize = LogicalToDeviceUnits(logicalIconSize);
-            var textHeight = LogicalToDeviceUnits(logicalTextHeight);
+            var itemPadding = ContentToDeviceUnits(logicalItemPadding);
+            var itemWidth = ContentToDeviceUnits(logicalItemWidth);
+            var iconSize = ContentToDeviceUnits(logicalIconSize);
+            var textHeight = ContentToDeviceUnits(logicalTextHeight);
             var itemHeight = iconSize + itemPadding + textHeight;
             var x = itemPadding;
             var y = itemPadding;
@@ -845,10 +879,10 @@ namespace 窗格
                 }
             }
 
-            var itemPadding = LogicalToDeviceUnits(logicalItemPadding);
-            var itemWidth = LogicalToDeviceUnits(logicalItemWidth);
-            var iconSize = LogicalToDeviceUnits(logicalIconSize);
-            var textHeight = LogicalToDeviceUnits(logicalTextHeight);
+            var itemPadding = ContentToDeviceUnits(logicalItemPadding);
+            var itemWidth = ContentToDeviceUnits(logicalItemWidth);
+            var iconSize = ContentToDeviceUnits(logicalIconSize);
+            var textHeight = ContentToDeviceUnits(logicalTextHeight);
             var itemHeight = iconSize + itemPadding + textHeight;
             var x = itemPadding;
             var y = itemPadding;
@@ -930,9 +964,9 @@ namespace 窗格
                 ? GetItemBounds(dragInsertionIndex)
                 : GetItemBounds(fenceInfo.Files.Count - 1);
             var x = beforeItem
-                ? markerTarget.Left - LogicalToDeviceUnits(3)
-                : markerTarget.Right + LogicalToDeviceUnits(3);
-            var markerWidth = Math.Max(3, LogicalToDeviceUnits(3));
+                ? markerTarget.Left - ContentToDeviceUnits(3)
+                : markerTarget.Right + ContentToDeviceUnits(3);
+            var markerWidth = ContentToDeviceUnits(3);
             var markerRect = new Rectangle(x - markerWidth / 2, markerTarget.Top,
                 markerWidth, markerTarget.Height);
             using (var markerBrush = new SolidBrush(FluentTheme.Accent))
@@ -955,11 +989,11 @@ namespace 窗格
             })
             {
                 var textSize = g.MeasureString(name, iconFont, textMaxSize, stringFormat);
-                var inset = LogicalToDeviceUnits(4);
-                var itemHeight = iconSize + LogicalToDeviceUnits(logicalItemPadding) + textHeight;
+                var inset = ContentToDeviceUnits(4);
+                var itemHeight = iconSize + ContentToDeviceUnits(logicalItemPadding) + textHeight;
                 var cardRect = new Rectangle(x - inset, y,
                     itemWidth + inset * 2, itemHeight);
-                var iconTextGap = LogicalToDeviceUnits(5);
+                var iconTextGap = ContentToDeviceUnits(5);
                 var contentHeight = iconSize + iconTextGap + (int)textSize.Height;
                 var contentOffset = Math.Max(0, (itemHeight - contentHeight) / 2);
                 var iconY = y + contentOffset;
@@ -992,18 +1026,18 @@ namespace 窗格
                 if (isSelected)
                 {
                     using (var cardBrush = new SolidBrush(FluentTheme.AccentOverlay(FluentTheme.IsDark ? 64 : 42)))
-                    using (var cardPath = CreateRoundedRectangle(cardRect, LogicalToDeviceUnits(7)))
+                    using (var cardPath = CreateRoundedRectangle(cardRect, ContentToDeviceUnits(7)))
                         g.FillPath(cardBrush, cardPath);
 
                     using (var borderPen = new Pen(Color.FromArgb(210, FluentTheme.Accent)))
-                    using (var cardPath = CreateRoundedRectangle(cardRect, LogicalToDeviceUnits(7)))
+                    using (var cardPath = CreateRoundedRectangle(cardRect, ContentToDeviceUnits(7)))
                         g.DrawPath(borderPen, cardPath);
                 }
 
                 var iconRect = new Rectangle(x + (itemWidth - iconSize) / 2, iconY, iconSize, iconSize);
                 if (GlobalFenceSettings.GlowEffectsEnabled && GlobalFenceSettings.IconGlowIntensity > 0)
                 {
-                    var glowRadius = LogicalToDeviceUnits(GlobalFenceSettings.IconGlowRadius);
+                    var glowRadius = ContentToDeviceUnits(GlobalFenceSettings.IconGlowRadius);
                     var glowOpacity = (int)Math.Round(GlobalFenceSettings.IconGlowIntensity * 255.0 / 100);
                     using (var iconLayer = new Bitmap(iconSize + glowRadius * 2, iconSize + glowRadius * 2))
                     using (var iconGraphics = Graphics.FromImage(iconLayer))
@@ -1015,8 +1049,8 @@ namespace 窗格
                 }
                 g.DrawIcon(icon, iconRect);
 
-                var shadowRadius = LogicalToDeviceUnits(3);
-                var shadowOffset = LogicalToDeviceUnits(1);
+                var shadowRadius = ContentToDeviceUnits(3);
+                var shadowOffset = ContentToDeviceUnits(1);
                 using (var textLayer = new Bitmap(
                     Math.Max(1, (int)Math.Ceiling(textMaxSize.Width) + shadowRadius * 2),
                     Math.Max(1, (int)Math.Ceiling(textMaxSize.Height) + shadowRadius * 2)))
@@ -1054,6 +1088,12 @@ namespace 窗格
             path.AddArc(bounds.Left, bounds.Bottom - diameter, diameter, diameter, 90, 90);
             path.CloseFigure();
             return path;
+        }
+
+        private int ContentToDeviceUnits(int logicalUnits)
+        {
+            var scaledUnits = (int)Math.Round(logicalUnits * GlobalFenceSettings.ContentScalePercent / 100.0);
+            return LogicalToDeviceUnits(Math.Max(1, scaledUnits));
         }
 
         private void DrawPointerGlow(Graphics graphics)
@@ -1120,10 +1160,10 @@ namespace 窗格
 
         internal bool FitBoundsToCurrentLayout()
         {
-            var itemPadding = LogicalToDeviceUnits(logicalItemPadding);
-            var itemWidth = LogicalToDeviceUnits(logicalItemWidth);
-            var iconSize = LogicalToDeviceUnits(logicalIconSize);
-            var textHeight = LogicalToDeviceUnits(logicalTextHeight);
+            var itemPadding = ContentToDeviceUnits(logicalItemPadding);
+            var itemWidth = ContentToDeviceUnits(logicalItemWidth);
+            var iconSize = ContentToDeviceUnits(logicalIconSize);
+            var textHeight = ContentToDeviceUnits(logicalTextHeight);
             var itemHeight = iconSize + itemPadding + textHeight;
             var columns = Math.Max(1, (Width - itemPadding) / (itemWidth + itemPadding));
             var rows = (fenceInfo.Files.Count + columns - 1) / columns;

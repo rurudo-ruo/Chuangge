@@ -17,6 +17,8 @@ namespace 窗格
 
         public static int TitleHeight => Math.Max(16, Math.Min(100, Settings.Default.GlobalTitleHeight));
 
+        public static int ContentScalePercent => Math.Max(50, Math.Min(200, Settings.Default.ContentScalePercent));
+
         public static bool HideTitleArea => Settings.Default.HideTitleArea;
 
         public static bool UseSystemTheme => Settings.Default.UseSystemTheme;
@@ -62,9 +64,10 @@ namespace 窗格
         public static void Update(int titleHeight, bool hideTitleArea, bool useSystemTheme,
             string displayMode, int customAccentColor, int darkOverlayOpacity, int lightOverlayOpacity,
             bool glowEffectsEnabled, int pointerGlowColor, int pointerGlowIntensity, int pointerGlowRadius,
-            int iconGlowIntensity, int iconGlowRadius)
+            int iconGlowIntensity, int iconGlowRadius, int contentScalePercent)
         {
             Settings.Default.GlobalTitleHeight = Math.Max(16, Math.Min(100, titleHeight));
+            Settings.Default.ContentScalePercent = Math.Max(50, Math.Min(200, contentScalePercent));
             Settings.Default.HideTitleArea = hideTitleArea;
             Settings.Default.UseSystemTheme = useSystemTheme;
             Settings.Default.DisplayMode = IsDisplayModeDark(displayMode) ? "Dark" : "Light";

@@ -1,4 +1,5 @@
 using 窗格.Model;
+using 窗格.Util;
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -19,8 +20,11 @@ namespace 窗格
         private readonly Button accentColorButton;
         private readonly TrackBar darkOverlayOpacity;
         private readonly TrackBar lightOverlayOpacity;
+        private readonly TrackBar contentScale;
+        private readonly CheckBox startWithWindows;
         private readonly Label darkOverlayValue;
         private readonly Label lightOverlayValue;
+        private readonly Label contentScaleValue;
         private readonly CheckBox glowEffectsEnabled;
         private readonly Button pointerGlowColorButton;
         private readonly TrackBar pointerGlowIntensity;
@@ -84,7 +88,7 @@ namespace 窗格
                 ColumnCount = 1,
                 Dock = DockStyle.Fill,
                 Padding = new Padding(24),
-                RowCount = 6,
+                RowCount = 8,
                 AutoScroll = true
             };
             contentLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -434,6 +438,91 @@ namespace 窗格
             glowEffectsEnabled.CheckedChanged += (sender, e) => UpdateGlowControlsEnabled();
             UpdateGlowControlsEnabled();
 
+            var contentScaleCard = new Panel
+            {
+                AutoSize = true,
+                BackColor = FluentTheme.Surface,
+                Dock = DockStyle.Top,
+                Margin = new Padding(0, 0, 0, 12),
+                Padding = new Padding(16),
+                Tag = "FluentSurface"
+            };
+            var contentScaleLayout = new TableLayoutPanel
+            {
+                AutoSize = true,
+                ColumnCount = 1,
+                Dock = DockStyle.Top,
+                Margin = new Padding(0),
+                RowCount = 3
+            };
+            contentScaleLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            for (var i = 0; i < contentScaleLayout.RowCount; i++)
+                contentScaleLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            var contentScaleHeading = new Label
+            {
+                AutoSize = true,
+                Font = new Font(FluentTheme.BodyFont, FontStyle.Bold),
+                Margin = new Padding(0, 0, 0, 8),
+                Text = "Fence content size"
+            };
+            contentScale = CreateGlowSlider(50, 200, GlobalFenceSettings.ContentScalePercent, 25);
+            contentScaleValue = CreateGlowValueLabel(contentScale.Value, "%");
+            contentScale.ValueChanged += (sender, e) =>
+                UpdateGlowValue(contentScale, contentScaleValue, "%");
+            var contentScaleHint = new Label
+            {
+                AutoSize = true,
+                ForeColor = FluentTheme.SecondaryText,
+                Margin = new Padding(0, 4, 0, 0),
+                Tag = "FluentSecondaryText",
+                Text = "Scales thumbnails, labels, and spacing independently of Windows display scaling. "
+                    + "Existing fence dimensions stay unchanged; use Modify all to resize them."
+            };
+            contentScaleLayout.Controls.Add(contentScaleHeading, 0, 0);
+            contentScaleLayout.Controls.Add(CreateGlowSliderRow("Content scale",
+                contentScale, contentScaleValue), 0, 1);
+            contentScaleLayout.Controls.Add(contentScaleHint, 0, 2);
+            contentScaleCard.Controls.Add(contentScaleLayout);
+
+            var startupCard = new Panel
+            {
+                AutoSize = true,
+                BackColor = FluentTheme.Surface,
+                Dock = DockStyle.Top,
+                Margin = new Padding(0, 0, 0, 12),
+                Padding = new Padding(16),
+                Tag = "FluentSurface"
+            };
+            var startupLayout = new TableLayoutPanel
+            {
+                AutoSize = true,
+                ColumnCount = 1,
+                Dock = DockStyle.Top,
+                Margin = new Padding(0),
+                RowCount = 2
+            };
+            startupLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            startupLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            startupLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            startWithWindows = new CheckBox
+            {
+                AutoSize = true,
+                Margin = new Padding(0, 0, 0, 4),
+                Text = "Start NoFences when I sign in",
+                Checked = StartupRegistration.IsEnabled
+            };
+            var startupHint = new Label
+            {
+                AutoSize = true,
+                ForeColor = FluentTheme.SecondaryText,
+                Margin = new Padding(0),
+                Tag = "FluentSecondaryText",
+                Text = "Uses a removable shortcut in your personal Startup folder; no registry entry or service is added."
+            };
+            startupLayout.Controls.Add(startWithWindows, 0, 0);
+            startupLayout.Controls.Add(startupHint, 0, 1);
+            startupCard.Controls.Add(startupLayout);
+
             var storageCard = new Panel
             {
                 AutoSize = true,
@@ -563,7 +652,9 @@ namespace 窗格
                         useSystemTheme.Checked, displayMode.SelectedItem as string ?? "Light",
                         customAccentColor.ToArgb(), darkOverlayOpacity.Value, lightOverlayOpacity.Value,
                         glowEffectsEnabled.Checked, pointerGlowColor.ToArgb(), pointerGlowIntensity.Value,
-                        pointerGlowRadius.Value, iconGlowIntensity.Value, iconGlowRadius.Value);
+                        pointerGlowRadius.Value, iconGlowIntensity.Value, iconGlowRadius.Value,
+                        contentScale.Value);
+                    StartupRegistration.SetEnabled(startWithWindows.Checked);
                     FluentTheme.ApplyToForm(this, applyButton);
                     UpdatePointerGlowColorButton();
                     statusLabel.Text = "Saved.";
@@ -571,6 +662,26 @@ namespace 窗格
                 catch (System.Configuration.ConfigurationErrorsException ex)
                 {
                     MessageBox.Show(this, ex.Message, "Settings could not be saved", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                catch (System.InvalidOperationException ex)
+                {
+                    MessageBox.Show(this, ex.Message, "Windows startup could not be updated",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                catch (System.UnauthorizedAccessException ex)
+                {
+                    MessageBox.Show(this, ex.Message, "Windows startup could not be updated",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                catch (System.IO.IOException ex)
+                {
+                    MessageBox.Show(this, ex.Message, "Windows startup could not be updated",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                catch (System.Runtime.InteropServices.COMException ex)
+                {
+                    MessageBox.Show(this, ex.Message, "Windows startup could not be updated",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             };
 
@@ -593,8 +704,10 @@ namespace 窗格
             contentLayout.Controls.Add(themeCard, 0, 1);
             contentLayout.Controls.Add(glowCard, 0, 2);
             contentLayout.Controls.Add(appearanceCard, 0, 3);
-            contentLayout.Controls.Add(storageCard, 0, 4);
-            contentLayout.Controls.Add(fitActions, 0, 5);
+            contentLayout.Controls.Add(contentScaleCard, 0, 4);
+            contentLayout.Controls.Add(startupCard, 0, 5);
+            contentLayout.Controls.Add(storageCard, 0, 6);
+            contentLayout.Controls.Add(fitActions, 0, 7);
             contentLayout.SizeChanged += ContentLayout_SizeChanged;
             var settingsLayout = new TableLayoutPanel
             {

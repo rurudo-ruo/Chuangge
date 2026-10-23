@@ -18,7 +18,7 @@ From the repository folder, run in PowerShell:
 .\build.ps1
 ```
 
-The script checks for MSBuild and the .NET Framework 4.8 targeting pack before building. If PowerShell blocks running the script, use:
+The script checks for MSBuild and the .NET Framework 4.8 targeting pack before building. If the matching Release app is running, it requests a normal window close and waits for the fences to save; it never force-terminates the app and cancels the build if the app cannot close safely. If PowerShell blocks running the script, use:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\build.ps1
@@ -32,7 +32,9 @@ Pushing a tag matching `v*` starts `.github/workflows/release.yml`. It uses `act
 
 ## Display scaling
 
-The app opts into Per-Monitor V2 DPI awareness. Fence contents, resize hit areas, and image thumbnails scale with monitor DPI; custom-rendered text uses grid-fitted anti-aliasing. Saved window positions and sizes retain the existing format.
+The app opts into Per-Monitor V2 DPI awareness. Fence contents, resize hit areas, and image thumbnails scale with monitor DPI; custom-rendered text uses grid-fitted anti-aliasing. Advanced settings also provide a persisted 50–200% content scale, applied on top of monitor DPI to thumbnail icons, labels, and item spacing. Existing saved fence dimensions remain unchanged until the user invokes **Modify all**, which fits each fence to the scaled layout.
+
+The optional sign-in launch uses a single shortcut in the current user's Windows Startup folder. Disabling it deletes that shortcut; the application does not create a Run registry entry, scheduled task, service, or separate startup preference.
 
 ## UI appearance
 

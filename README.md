@@ -16,6 +16,7 @@ This is a personal fork of [Twometer's NoFences](https://github.com/Twometer/NoF
 - View items as thumbnails and rearrange them by dragging.
 - Move items between panels or add references by dragging files and folders from Explorer.
 - Adjust global title appearance, hide panel titles, and fit all panels to their current thumbnail layout.
+- Customize thumbnail, label, and spacing size independently of Windows display scaling.
 - Work with missing items: locate replacements, remove entries, or open their containing folder.
 - Scale across monitors with different DPI settings.
 
@@ -23,7 +24,9 @@ This is a personal fork of [Twometer's NoFences](https://github.com/Twometer/NoF
 
 The notification-area icon provides **New fence**, **Advanced settings**, and **Exit** actions. Double-click the icon to open Advanced settings.
 
-Open **Advanced settings** to set the global title size or hide all panel title bars and title text. When titles are hidden, hold **Alt** while dragging a panel to move it; resize its edges as usual. The **Modify all** button is a one-time action that adjusts panel bounds to fit the current thumbnail layout.
+Open **Advanced settings** to set the global title size or hide all panel title bars and title text. Use **Fence content size** to scale thumbnails, labels, and spacing from 50% to 200%, independently of Windows display scaling. Existing panel dimensions are preserved; use **Modify all** to resize every panel to fit the new thumbnail layout. When titles are hidden, hold **Alt** while dragging a panel to move it; resize its edges as usual.
+
+To launch the app when you sign in, enable **Start NoFences when I sign in** in Advanced settings and click **Apply**. Disabling the option removes the app's shortcut from your personal Windows Startup folder. This does not add a registry Run entry, scheduled task, or service.
 
 Drag a thumbnail to reorder it within its panel, or onto another unlocked panel to move it. Dragging files and folders from Explorer adds references to them without moving the original files.
 

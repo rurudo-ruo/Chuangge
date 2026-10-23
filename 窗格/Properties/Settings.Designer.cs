@@ -190,5 +190,17 @@ namespace 窗格.Properties {
                 this["LastSkippedFencePaths"] = value;
             }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("100")]
+        public int ContentScalePercent {
+            get {
+                return ((int)(this["ContentScalePercent"]));
+            }
+            set {
+                this["ContentScalePercent"] = value;
+            }
+        }
     }
 }
