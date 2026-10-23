@@ -99,7 +99,7 @@ jobs:
             throw 'Unable to read commit history for release notes.'
           }
 
-          $notes = @('## Changes', '')
+          $notes = @('### Changes', '')
           foreach ($commit in $commits) {
             $parts = $commit -split "`t", 2
             if ($parts.Count -eq 2) {
