@@ -28,7 +28,7 @@ The Release executable is created at `窗格\bin\Release\窗格.exe`. The target
 
 ## GitHub releases
 
-Pushing a tag matching `v*` starts `.github/workflows/release.yml`. It uses `actions/checkout@v5` (Node.js 24) and discovers MSBuild through Visual Studio's `vswhere.exe`. The workflow constructs the Unicode app name from code points in PowerShell so Windows PowerShell does not corrupt the solution or asset paths. It builds the Release configuration and attaches two assets: an EXE-only download and a ZIP containing only the app executable and Microsoft's .NET Framework 4.8 web installer. The workflow checks the downloaded installer's Authenticode signature and requires a valid Microsoft Corporation signer. The web installer downloads runtime components from Microsoft and requires internet access; it is not an offline runtime bundle.
+Pushing a tag matching `v*` starts `.github/workflows/release.yml`. It uses `actions/checkout@v5` (Node.js 24) and discovers MSBuild through Visual Studio's `vswhere.exe`. The workflow constructs the Unicode app name from code points in PowerShell so Windows PowerShell does not corrupt the solution or asset paths. It builds the Release configuration and attaches two assets: an EXE-only download and a ZIP containing only the app executable and Microsoft's .NET Framework 4.8 web installer. The workflow checks the downloaded installer's Authenticode signature and requires a valid Microsoft Corporation signer. Release notes list first-parent commit subjects since the previous reachable tag and link to each commit and the full comparison. The web installer downloads runtime components from Microsoft and requires internet access; it is not an offline runtime bundle.
 
 ## Display scaling
 

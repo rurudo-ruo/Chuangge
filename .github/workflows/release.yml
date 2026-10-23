@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Build Release
         shell: powershell
@@ -75,8 +77,52 @@ jobs:
             -DestinationPath (Join-Path $releaseDirectory "$appName-$version-windows-x64.zip") `
             -CompressionLevel Optimal
 
+      - name: Generate release notes
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = $env:GITHUB_REF_NAME
+          $target = $env:GITHUB_SHA
+          $previousTag = & git describe --tags --abbrev=0 "$target^" 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            $previousTag = $null
+          }
+
+          if ($previousTag) {
+            $range = "$previousTag..$target"
+          } else {
+            $range = $target
+          }
+
+          $commits = @(& git log --first-parent --format="%H%x09%s" $range)
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Unable to read commit history for release notes.'
+          }
+
+          $notes = @('## Changes', '')
+          foreach ($commit in $commits) {
+            $parts = $commit -split "`t", 2
+            if ($parts.Count -eq 2) {
+              $shortSha = $parts[0].Substring(0, 7)
+              $commitUrl = "https://github.com/$env:GITHUB_REPOSITORY/commit/$($parts[0])"
+              $notes += "- $($parts[1]) ([${shortSha}]($commitUrl))"
+            }
+          }
+
+          if ($commits.Count -eq 0) {
+            $notes += '- No commits found since the previous release.'
+          }
+
+          if ($previousTag) {
+            $compareUrl = "https://github.com/$env:GITHUB_REPOSITORY/compare/$previousTag...$tag"
+            $notes += ''
+            $notes += "[Full changelog]($compareUrl)"
+          }
+
+          Set-Content -Path 'release-notes.md' -Value $notes -Encoding utf8
+
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
           files: release-assets/*
-          generate_release_notes: true
+          body_path: release-notes.md
