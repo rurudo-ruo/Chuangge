@@ -12,6 +12,16 @@ namespace 窗格.Util
 {
     public class ThumbnailProvider
     {
+        public sealed class ThumbnailLoadedEventArgs : EventArgs
+        {
+            public string Path { get; }
+
+            public ThumbnailLoadedEventArgs(string path)
+            {
+                Path = path;
+            }
+        }
+
         // Supported .NET images as per https://docs.microsoft.com/en-us/dotnet/api/system.drawing.image.fromfile
         private static readonly string[] SupportedExtensions =
         {
@@ -26,6 +36,7 @@ namespace 窗格.Util
 
         private class ThumbnailState
         {
+            public string path;
             public Icon icon;
         }
 
@@ -35,7 +46,7 @@ namespace 窗格.Util
         private readonly List<Icon> retiredIcons = new List<Icon>();
         private readonly object syncRoot = new object();
         private bool disposed;
-        public event EventHandler IconThumbnailLoaded;
+        public event EventHandler<ThumbnailLoadedEventArgs> IconThumbnailLoaded;
 
         public bool IsSupported(string path)
         {
@@ -63,6 +74,30 @@ namespace 窗格.Util
             }
         }
 
+        public Icon GenerateAssociatedIcon(string path)
+        {
+            const string associatedIconKeySuffix = "|associated";
+            var cacheKey = path + associatedIconKeySuffix;
+            lock (syncRoot)
+            {
+                if (disposed)
+                    return SystemIcons.Application;
+
+                ThumbnailState state;
+                if (iconCache.TryGetValue(cacheKey, out state))
+                    return state.icon;
+
+                state = new ThumbnailState
+                {
+                    path = path,
+                    icon = (Icon)SystemIcons.Application.Clone()
+                };
+                iconCache.Add(cacheKey, state);
+                Task.Run(() => GenerateAssociatedIconAsync(path, state));
+                return state.icon;
+            }
+        }
+
         public void Dispose()
         {
             lock (syncRoot)
@@ -82,10 +117,10 @@ namespace 窗格.Util
 
         private ThumbnailState SubmitGeneratorTask(string path, int size, string cacheKey)
         {
-            var fallbackIcon = Icon.ExtractAssociatedIcon(path);
             var state = new ThumbnailState
             {
-                icon = fallbackIcon ?? (Icon)SystemIcons.Application.Clone()
+                path = path,
+                icon = (Icon)SystemIcons.Application.Clone()
             };
             iconCache[cacheKey] = state;
 
@@ -129,7 +164,7 @@ namespace 窗格.Util
                                 state.icon = icon;
                             }
 
-                            IconThumbnailLoaded?.Invoke(this, EventArgs.Empty);
+                            IconThumbnailLoaded?.Invoke(this, new ThumbnailLoadedEventArgs(state.path));
                         }
                     }
                 }
@@ -141,6 +176,48 @@ namespace 窗格.Util
                 || ex is OutOfMemoryException)
             {
                 System.Diagnostics.Debug.WriteLine("Could not generate image thumbnail for " + path + ": " + ex);
+            }
+            finally
+            {
+                if (semaphoreAcquired)
+                    semaphore.Release();
+            }
+        }
+
+        private async Task GenerateAssociatedIconAsync(string path, ThumbnailState state)
+        {
+            var semaphoreAcquired = false;
+            try
+            {
+                await semaphore.WaitAsync();
+                semaphoreAcquired = true;
+                var icon = Icon.ExtractAssociatedIcon(path);
+                if (icon == null)
+                    return;
+
+                lock (syncRoot)
+                {
+                    if (disposed)
+                    {
+                        icon.Dispose();
+                        return;
+                    }
+
+                    retiredIcons.Add(state.icon);
+                    state.icon = icon;
+                }
+
+                IconThumbnailLoaded?.Invoke(this, new ThumbnailLoadedEventArgs(path));
+            }
+            catch (Exception ex) when (ex is IOException
+                || ex is UnauthorizedAccessException
+                || ex is ArgumentException
+                || ex is ExternalException
+                || ex is OutOfMemoryException
+                || ex is System.ComponentModel.Win32Exception
+                || ex is System.Security.SecurityException)
+            {
+                System.Diagnostics.Debug.WriteLine("Could not extract file icon for " + path + ": " + ex);
             }
             finally
             {

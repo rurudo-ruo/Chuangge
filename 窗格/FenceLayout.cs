@@ -36,6 +36,55 @@ namespace 窗格
                 itemHeight);
         }
 
+        public int GetItemIndexAt(Point point, int itemCount)
+        {
+            if (itemCount <= 0 || point.X < itemPadding)
+                return -1;
+
+            var strideX = itemWidth + itemPadding;
+            var columnOffset = point.X - itemPadding;
+            var column = columnOffset / strideX;
+            if (column >= GetColumnCount(width, itemPadding, itemWidth)
+                || columnOffset % strideX >= itemWidth)
+                return -1;
+
+            var rowOffset = point.Y - titleHeight + scrollOffset - itemPadding;
+            if (rowOffset < 0)
+                return -1;
+
+            var strideY = itemHeight + itemPadding;
+            var row = rowOffset / strideY;
+            if (rowOffset % strideY >= itemHeight)
+                return -1;
+
+            var index = row * GetColumnCount(width, itemPadding, itemWidth) + column;
+            return index < itemCount ? index : -1;
+        }
+
+        public void GetVisibleItemRange(Rectangle clip, int itemCount, int effectPadding,
+            out int firstIndex, out int lastIndex)
+        {
+            firstIndex = 0;
+            lastIndex = -1;
+            if (itemCount <= 0 || clip.IsEmpty)
+                return;
+
+            var columns = GetColumnCount(width, itemPadding, itemWidth);
+            var strideY = itemHeight + itemPadding;
+            var baseTop = itemPadding + titleHeight - scrollOffset;
+            var firstRow = Math.Max(0, FloorDivide(
+                clip.Top - baseTop - itemHeight - effectPadding, strideY) + 1);
+            var lastRow = FloorDivide(
+                clip.Bottom - 1 - baseTop + effectPadding, strideY);
+            var rowCount = (itemCount + columns - 1) / columns;
+            lastRow = Math.Min(rowCount - 1, lastRow);
+            if (firstRow > lastRow)
+                return;
+
+            firstIndex = firstRow * columns;
+            lastIndex = Math.Min(itemCount - 1, (lastRow + 1) * columns - 1);
+        }
+
         public int GetDropInsertionIndex(Point point, int itemCount)
         {
             if (itemCount == 0)
@@ -102,6 +151,12 @@ namespace 窗格
             var stride = itemWidth + itemPadding;
             var availableWidth = width - itemPadding - itemWidth;
             return Math.Max(1, availableWidth / stride + 1);
+        }
+
+        private static int FloorDivide(int value, int divisor)
+        {
+            var quotient = value / divisor;
+            return value < 0 && value % divisor != 0 ? quotient - 1 : quotient;
         }
     }
 }

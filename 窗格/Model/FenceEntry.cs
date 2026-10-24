@@ -42,7 +42,7 @@ namespace 窗格.Model
                 if (thumbnailProvider.IsSupported(Path))
                     return thumbnailProvider.GenerateThumbnail(Path, thumbnailSize);
                 else
-                    return Icon.ExtractAssociatedIcon(Path);
+                    return thumbnailProvider.GenerateAssociatedIcon(Path);
             }
             else
             {

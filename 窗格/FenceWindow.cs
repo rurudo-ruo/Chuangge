@@ -2,6 +2,7 @@ using 窗格.Model;
 using 窗格.Util;
 using 窗格.Win32;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
@@ -21,6 +22,7 @@ namespace 窗格
         private const int logicalTextHeight = 36;
         private const int logicalItemPadding = 12;
         private const float logicalIconFontSize = 9;
+        private const int maximumCachedItemEffects = 128;
 
         private readonly FenceViewModel viewModel;
         private FenceInfo fenceInfo => viewModel.Info;
@@ -30,10 +32,6 @@ namespace 窗格
 
         private string selectedItem;
         private string hoveringItem;
-        private bool shouldUpdateSelection;
-        private bool shouldRunDoubleClick;
-        private bool hasSelectionUpdated;
-        private bool hasHoverUpdated;
         private bool isMinified;
         private int prevHeight;
         private Point thumbnailMouseDown;
@@ -67,6 +65,37 @@ namespace 窗格
             public string Path { get; set; }
             public int Index { get; set; }
         }
+
+        private sealed class ItemRenderCache : IDisposable
+        {
+            public Bitmap IconGlow;
+            public int IconSize;
+            public int IconGlowRadius;
+            public int IconGlowOpacity;
+            public EntryType IconType;
+            public Bitmap TextShadow;
+            public string Text;
+            public int TextWidth;
+            public int TextHeight;
+            public float FontSize;
+            public int ShadowRadius;
+            public int ShadowOffset;
+            public int ShadowOpacity;
+            public long LastAccess;
+
+            public void Dispose()
+            {
+                IconGlow?.Dispose();
+                TextShadow?.Dispose();
+            }
+        }
+
+        private readonly Dictionary<string, ItemRenderCache> itemRenderCache =
+            new Dictionary<string, ItemRenderCache>(StringComparer.OrdinalIgnoreCase);
+        private long wheelDeltaRemainder;
+        private long renderCacheAccessOrder;
+        private Bitmap pointerGlowBitmap;
+        private int pointerGlowRadius;
 
         private void ReloadFonts()
         {
@@ -129,6 +158,7 @@ namespace 窗格
             locateMissingFolderItem.Click += LocateMissingFolderItem_Click;
             openMissingParentItem.Click += OpenMissingParentItem_Click;
             GlobalFenceSettings.Changed += GlobalFenceSettings_Changed;
+            UpdatePointerGlowBitmap();
             Minify();
         }
 
@@ -220,6 +250,7 @@ namespace 窗格
 
             var dpiScale = (double)e.DeviceDpiNew / e.DeviceDpiOld;
             scrollOffset = (int)Math.Round(scrollOffset * dpiScale);
+            ClearRenderCache();
             if (wasMinified)
             {
                 prevHeight = (int)Math.Round(prevHeight * dpiScale);
@@ -230,6 +261,7 @@ namespace 窗格
                 prevHeight = Height;
             }
 
+            UpdatePointerGlowBitmap();
             Invalidate();
         }
 
@@ -240,6 +272,9 @@ namespace 窗格
             thumbnailProvider.Dispose();
             debouncedMove.Dispose();
             debouncedResize.Dispose();
+            ClearRenderCache();
+            pointerGlowBitmap?.Dispose();
+            pointerGlowBitmap = null;
             titleFont?.Dispose();
             iconFont?.Dispose();
             base.OnFormClosed(e);
@@ -311,6 +346,7 @@ namespace 窗格
                 return;
             }
 
+            ClearRenderCache();
             hoveringItem = null;
             Refresh();
         }
@@ -391,6 +427,7 @@ namespace 窗格
                 try
                 {
                     viewModel.AddExistingItems(dropped);
+                    ClearRenderCache();
                 }
                 catch (Exception ex) when (IsFenceSaveError(ex))
                 {
@@ -430,8 +467,10 @@ namespace 窗格
                         return;
                     selectedItem = dragData.Path;
                     source.selectedItem = null;
+                    source.ClearRenderCache();
                     source.Invalidate();
                 }
+                ClearRenderCache();
             }
             catch (Exception ex) when (IsFenceSaveError(ex))
             {
@@ -477,8 +516,11 @@ namespace 窗格
 
         private void FenceWindow_MouseMove(object sender, MouseEventArgs e)
         {
+            var previousPointerPosition = pointerPosition;
             pointerPosition = e.Location;
             pointerInside = true;
+            var hoveredItemIndex = GetItemIndexAt(e.Location);
+            hoveringItem = hoveredItemIndex >= 0 ? fenceInfo.Files[hoveredItemIndex] : null;
 
             if (!lockedToolStripMenuItem.Checked && e.Button == MouseButtons.Left && thumbnailDragPath != null
                 && !isDraggingThumbnail)
@@ -515,7 +557,11 @@ namespace 窗格
                 }
             }
 
-            Invalidate();
+            if (GlobalFenceSettings.GlowEffectsEnabled && GlobalFenceSettings.PointerGlowIntensity > 0)
+            {
+                InvalidatePointerGlow(previousPointerPosition);
+                InvalidatePointerGlow(pointerPosition);
+            }
         }
 
         private void FenceWindow_MouseDown(object sender, MouseEventArgs e)
@@ -541,10 +587,7 @@ namespace 窗格
 
         private int GetItemIndexAt(Point point)
         {
-            for (var i = 0; i < fenceInfo.Files.Count; i++)
-                if (GetItemBounds(i).Contains(point))
-                    return i;
-            return -1;
+            return CreateLayout().GetItemIndexAt(point, fenceInfo.Files.Count);
         }
 
         private int GetDropInsertionIndex(Point point)
@@ -579,11 +622,15 @@ namespace 窗格
 
         private void FenceWindow_MouseLeave(object sender, EventArgs e)
         {
+            var previousPointerPosition = pointerPosition;
+            var previousSelectedItem = selectedItem;
             pointerInside = false;
             if (!isDraggingThumbnail)
                 Minify();
             selectedItem = null;
-            Refresh();
+            hoveringItem = null;
+            InvalidatePointerGlow(previousPointerPosition);
+            InvalidateItem(previousSelectedItem);
         }
 
         private void Minify()
@@ -623,20 +670,24 @@ namespace 窗格
                 return;
             }
 
-            shouldUpdateSelection = true;
-            Refresh();
+            var previousSelectedItem = selectedItem;
+            var itemIndex = GetItemIndexAt(PointToClient(MousePosition));
+            selectedItem = itemIndex >= 0 ? fenceInfo.Files[itemIndex] : null;
+            InvalidateItem(previousSelectedItem);
+            InvalidateItem(selectedItem);
         }
 
         private void FenceWindow_DoubleClick(object sender, EventArgs e)
         {
-            shouldRunDoubleClick = true;
-            Refresh();
+            var itemIndex = GetItemIndexAt(PointToClient(MousePosition));
+            if (itemIndex >= 0)
+                FenceEntry.FromPath(fenceInfo.Files[itemIndex]).Open();
         }
 
         private void FenceWindow_Paint(object sender, PaintEventArgs e)
         {
             var graphics = e.Graphics;
-            graphics.SetClip(ClientRectangle);
+            graphics.SetClip(ClientRectangle, CombineMode.Intersect);
             graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
             graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             var backgroundAlpha = GlobalFenceSettings.GetOverlayOpacity(92, 174);
@@ -674,14 +725,19 @@ namespace 窗格
             var itemWidth = ContentToDeviceUnits(logicalItemWidth);
             var iconSize = ContentToDeviceUnits(logicalIconSize);
             var textHeight = ContentToDeviceUnits(logicalTextHeight);
-            graphics.SetClip(new Rectangle(0, titleHeight, Width, Math.Max(0, Height - titleHeight)));
-            for (var i = 0; i < fenceInfo.Files.Count; i++)
+            graphics.SetClip(new Rectangle(0, titleHeight, Width, Math.Max(0, Height - titleHeight)),
+                CombineMode.Intersect);
+            var visibleBounds = Rectangle.Ceiling(graphics.VisibleClipBounds);
+            var effectPadding = Math.Max(ContentToDeviceUnits(GlobalFenceSettings.IconGlowRadius),
+                ContentToDeviceUnits(4));
+            int firstVisibleIndex;
+            int lastVisibleIndex;
+            layout.GetVisibleItemRange(visibleBounds, fenceInfo.Files.Count, effectPadding,
+                out firstVisibleIndex, out lastVisibleIndex);
+            for (var i = firstVisibleIndex; i <= lastVisibleIndex; i++)
             {
-                var entry = FenceEntry.FromPath(fenceInfo.Files[i]);
-                if (entry == null)
-                    continue;
-
                 var bounds = layout.GetItemBounds(i);
+                var entry = FenceEntry.FromPath(fenceInfo.Files[i]);
                 RenderEntry(graphics, entry, bounds.Left, bounds.Top, itemWidth, textHeight, iconSize);
             }
 
@@ -718,17 +774,6 @@ namespace 窗格
             if (GlobalFenceSettings.GlowEffectsEnabled && pointerInside)
                 DrawPointerGlow(graphics);
 
-            // Click handlers
-            if (shouldUpdateSelection && !hasSelectionUpdated)
-                selectedItem = null;
-
-            if (!hasHoverUpdated)
-                hoveringItem = null;
-
-            shouldRunDoubleClick = false;
-            shouldUpdateSelection = false;
-            hasSelectionUpdated = false;
-            hasHoverUpdated = false;
         }
 
         private void DrawDragInsertionMarker(Graphics graphics)
@@ -776,29 +821,6 @@ namespace 窗格
                 var iconY = y + contentOffset;
                 var textPosition = new PointF(x, iconY + iconSize + iconTextGap);
 
-                var mousePos = PointToClient(MousePosition);
-                var mouseOver = mousePos.X >= x && mousePos.Y >= y
-                    && mousePos.X < x + itemWidth && mousePos.Y < y + itemHeight;
-
-                if (mouseOver)
-                {
-                    hoveringItem = entry.Path;
-                    hasHoverUpdated = true;
-                }
-
-                if (mouseOver && shouldUpdateSelection)
-                {
-                    selectedItem = entry.Path;
-                    shouldUpdateSelection = false;
-                    hasSelectionUpdated = true;
-                }
-
-                if (mouseOver && shouldRunDoubleClick)
-                {
-                    shouldRunDoubleClick = false;
-                    entry.Open();
-                }
-
                 var isSelected = string.Equals(selectedItem, entry.Path, StringComparison.OrdinalIgnoreCase);
                 if (isSelected)
                 {
@@ -816,32 +838,18 @@ namespace 窗格
                 {
                     var glowRadius = ContentToDeviceUnits(GlobalFenceSettings.IconGlowRadius);
                     var glowOpacity = (int)Math.Round(GlobalFenceSettings.IconGlowIntensity * 255.0 / 100);
-                    using (var iconLayer = new Bitmap(iconSize + glowRadius * 2, iconSize + glowRadius * 2))
-                    using (var iconGraphics = Graphics.FromImage(iconLayer))
-                    {
-                        iconGraphics.DrawIcon(icon, new Rectangle(glowRadius, glowRadius, iconSize, iconSize));
-                        using (var iconGlow = FluentTheme.CreateBlurredColor(iconLayer, glowRadius, glowOpacity))
-                            g.DrawImageUnscaled(iconGlow, iconRect.X - glowRadius, iconRect.Y - glowRadius);
-                    }
+                    var iconGlow = GetIconGlow(entry, icon, iconSize, glowRadius, glowOpacity);
+                    g.DrawImageUnscaled(iconGlow, iconRect.X - glowRadius, iconRect.Y - glowRadius);
                 }
                 g.DrawIcon(icon, iconRect);
 
                 var shadowRadius = ContentToDeviceUnits(3);
                 var shadowOffset = ContentToDeviceUnits(1);
-                using (var textLayer = new Bitmap(
-                    Math.Max(1, (int)Math.Ceiling(textMaxSize.Width) + shadowRadius * 2),
-                    Math.Max(1, (int)Math.Ceiling(textMaxSize.Height) + shadowRadius * 2)))
-                using (var textGraphics = Graphics.FromImage(textLayer))
-                using (var shadowBrush = new SolidBrush(Color.FromArgb(FluentTheme.IsDark ? 82 : 58, Color.Black)))
-                {
-                    textGraphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
-                    textGraphics.DrawString(name, iconFont, shadowBrush,
-                        new RectangleF(shadowRadius + shadowOffset, shadowRadius + shadowOffset,
-                            textMaxSize.Width, textMaxSize.Height), stringFormat);
-                    using (var blurredText = FluentTheme.CreateBlurredTint(textLayer, Color.Black, shadowRadius))
-                        g.DrawImageUnscaled(blurredText,
-                            (int)textPosition.X - shadowRadius, (int)textPosition.Y - shadowRadius);
-                }
+                var shadowOpacity = FluentTheme.IsDark ? 82 : 58;
+                var blurredText = GetTextShadow(entry, name, textMaxSize, shadowRadius,
+                    shadowOffset, shadowOpacity, stringFormat);
+                g.DrawImageUnscaled(blurredText,
+                    (int)textPosition.X - shadowRadius, (int)textPosition.Y - shadowRadius);
                 using (var nameBrush = new SolidBrush(entry.Type == EntryType.Missing
                     ? Color.FromArgb(255, 224, 176)
                     : FluentTheme.Text))
@@ -867,20 +875,155 @@ namespace 窗格
             return path;
         }
 
-        private int ContentToDeviceUnits(int logicalUnits)
+        private ItemRenderCache GetRenderCache(string path)
         {
-            var scaledUnits = (int)Math.Round(logicalUnits * GlobalFenceSettings.ContentScalePercent / 100.0);
-            return LogicalToDeviceUnits(Math.Max(1, scaledUnits));
+            ItemRenderCache cache;
+            if (!itemRenderCache.TryGetValue(path, out cache))
+            {
+                if (itemRenderCache.Count >= maximumCachedItemEffects)
+                {
+                    string leastRecentlyUsedPath = null;
+                    ItemRenderCache leastRecentlyUsed = null;
+                    foreach (var item in itemRenderCache)
+                    {
+                        if (leastRecentlyUsed == null || item.Value.LastAccess < leastRecentlyUsed.LastAccess)
+                        {
+                            leastRecentlyUsedPath = item.Key;
+                            leastRecentlyUsed = item.Value;
+                        }
+                    }
+
+                    itemRenderCache.Remove(leastRecentlyUsedPath);
+                    leastRecentlyUsed.Dispose();
+                }
+
+                cache = new ItemRenderCache();
+                itemRenderCache.Add(path, cache);
+            }
+
+            cache.LastAccess = ++renderCacheAccessOrder;
+            return cache;
         }
 
-        private void DrawPointerGlow(Graphics graphics)
+        private Bitmap GetIconGlow(FenceEntry entry, Icon icon, int iconSize, int glowRadius, int glowOpacity)
         {
-            var radius = LogicalToDeviceUnits(GlobalFenceSettings.PointerGlowRadius);
-            var bounds = new Rectangle(pointerPosition.X - radius, pointerPosition.Y - radius,
-                radius * 2, radius * 2);
+            var cache = GetRenderCache(entry.Path);
+            if (cache.IconGlow != null && cache.IconSize == iconSize
+                && cache.IconGlowRadius == glowRadius && cache.IconGlowOpacity == glowOpacity
+                && cache.IconType == entry.Type)
+                return cache.IconGlow;
+
+            using (var iconLayer = new Bitmap(iconSize + glowRadius * 2, iconSize + glowRadius * 2))
+            using (var iconGraphics = Graphics.FromImage(iconLayer))
+            {
+                iconGraphics.DrawIcon(icon, new Rectangle(glowRadius, glowRadius, iconSize, iconSize));
+                var iconGlow = FluentTheme.CreateBlurredColor(iconLayer, glowRadius, glowOpacity);
+                cache.IconGlow?.Dispose();
+                cache.IconGlow = iconGlow;
+                cache.IconSize = iconSize;
+                cache.IconGlowRadius = glowRadius;
+                cache.IconGlowOpacity = glowOpacity;
+                cache.IconType = entry.Type;
+            }
+
+            return cache.IconGlow;
+        }
+
+        private Bitmap GetTextShadow(FenceEntry entry, string text, SizeF textSize,
+            int shadowRadius, int shadowOffset, int shadowOpacity, StringFormat stringFormat)
+        {
+            var cache = GetRenderCache(entry.Path);
+            var width = Math.Max(1, (int)Math.Ceiling(textSize.Width) + shadowRadius * 2);
+            var height = Math.Max(1, (int)Math.Ceiling(textSize.Height) + shadowRadius * 2);
+            if (cache.TextShadow != null && cache.Text == text
+                && cache.TextWidth == width && cache.TextHeight == height
+                && cache.FontSize == iconFont.Size && cache.ShadowRadius == shadowRadius
+                && cache.ShadowOffset == shadowOffset && cache.ShadowOpacity == shadowOpacity)
+                return cache.TextShadow;
+
+            using (var textLayer = new Bitmap(width, height))
+            using (var textGraphics = Graphics.FromImage(textLayer))
+            using (var shadowBrush = new SolidBrush(Color.FromArgb(shadowOpacity, Color.Black)))
+            {
+                textGraphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+                textGraphics.DrawString(text, iconFont, shadowBrush,
+                    new RectangleF(shadowRadius + shadowOffset, shadowRadius + shadowOffset,
+                        textSize.Width, textSize.Height), stringFormat);
+                var blurredText = FluentTheme.CreateBlurredTint(textLayer, Color.Black, shadowRadius);
+                cache.TextShadow?.Dispose();
+                cache.TextShadow = blurredText;
+                cache.Text = text;
+                cache.TextWidth = width;
+                cache.TextHeight = height;
+                cache.FontSize = iconFont.Size;
+                cache.ShadowRadius = shadowRadius;
+                cache.ShadowOffset = shadowOffset;
+                cache.ShadowOpacity = shadowOpacity;
+            }
+
+            return cache.TextShadow;
+        }
+
+        private void ClearRenderCache()
+        {
+            foreach (var cache in itemRenderCache.Values)
+                cache.Dispose();
+            itemRenderCache.Clear();
+        }
+
+        private void InvalidateItem(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return;
+
+            var itemIndex = fenceInfo.Files.FindIndex(item =>
+                string.Equals(item, path, StringComparison.OrdinalIgnoreCase));
+            if (itemIndex < 0)
+                return;
+
+            var padding = Math.Max(ContentToDeviceUnits(GlobalFenceSettings.IconGlowRadius),
+                ContentToDeviceUnits(4));
+            Invalidate(Rectangle.Inflate(CreateLayout().GetItemBounds(itemIndex), padding, padding));
+        }
+
+        private void InvalidateIconGlow(string path)
+        {
+            ItemRenderCache cache;
+            if (itemRenderCache.TryGetValue(path, out cache))
+            {
+                cache.IconGlow?.Dispose();
+                cache.IconGlow = null;
+            }
+
+            InvalidateItem(path);
+        }
+
+        private void InvalidatePointerGlow(Point position)
+        {
+            var radius = pointerGlowRadius > 0
+                ? pointerGlowRadius
+                : LogicalToDeviceUnits(GlobalFenceSettings.PointerGlowRadius);
+            var bounds = Rectangle.Intersect(ClientRectangle,
+                new Rectangle(position.X - radius, position.Y - radius, radius * 2, radius * 2));
+            if (!bounds.IsEmpty)
+                Invalidate(bounds);
+        }
+
+        private void UpdatePointerGlowBitmap()
+        {
+            pointerGlowBitmap?.Dispose();
+            pointerGlowBitmap = null;
+            pointerGlowRadius = LogicalToDeviceUnits(GlobalFenceSettings.PointerGlowRadius);
+            if (!GlobalFenceSettings.GlowEffectsEnabled || GlobalFenceSettings.PointerGlowIntensity <= 0)
+                return;
+
+            var diameter = pointerGlowRadius * 2;
+            var bitmap = new Bitmap(diameter, diameter);
+            using (var graphics = Graphics.FromImage(bitmap))
             using (var path = new GraphicsPath())
             {
-                path.AddEllipse(bounds);
+                graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                path.AddEllipse(0, 0, diameter - 1, diameter - 1);
                 using (var glow = new PathGradientBrush(path))
                 {
                     var highlight = GlobalFenceSettings.PointerGlowColor;
@@ -892,6 +1035,21 @@ namespace 窗格
                     graphics.FillPath(glow, path);
                 }
             }
+
+            pointerGlowBitmap = bitmap;
+        }
+
+        private int ContentToDeviceUnits(int logicalUnits)
+        {
+            var scaledUnits = (int)Math.Round(logicalUnits * GlobalFenceSettings.ContentScalePercent / 100.0);
+            return LogicalToDeviceUnits(Math.Max(1, scaledUnits));
+        }
+
+        private void DrawPointerGlow(Graphics graphics)
+        {
+            if (pointerGlowBitmap != null)
+                graphics.DrawImageUnscaled(pointerGlowBitmap,
+                    pointerPosition.X - pointerGlowRadius, pointerPosition.Y - pointerGlowRadius);
         }
 
         private void renameToolStripMenuItem_Click(object sender, EventArgs e)
@@ -1041,18 +1199,45 @@ namespace 窗格
             if (scrollHeight < 1)
                 return;
 
-            scrollOffset -= Math.Sign(e.Delta) * 10;
-            if (scrollOffset < 0)
-                scrollOffset = 0;
-            if (scrollOffset > scrollHeight)
-                scrollOffset = scrollHeight;
+            var wheelDelta = Math.Max(1, SystemInformation.MouseWheelScrollDelta);
+            var accumulatedDelta = wheelDeltaRemainder + e.Delta;
+            var wheelNotches = accumulatedDelta / wheelDelta;
+            wheelDeltaRemainder = accumulatedDelta % wheelDelta;
+            if (wheelNotches == 0)
+                return;
 
-            Invalidate();
+            var scrollLines = SystemInformation.MouseWheelScrollLines;
+            if (scrollLines == 0)
+                return;
+
+            var scrollDistance = scrollLines == -1
+                ? Math.Max(1, ClientRectangle.Height - titleHeight)
+                : wheelNotches * scrollLines * ContentToDeviceUnits(16);
+            var newScrollOffset = Math.Max(0L, Math.Min(scrollHeight, (long)scrollOffset - scrollDistance));
+            if (newScrollOffset == scrollOffset)
+                return;
+
+            scrollOffset = (int)newScrollOffset;
+            var hoveredItemIndex = GetItemIndexAt(PointToClient(MousePosition));
+            hoveringItem = hoveredItemIndex >= 0 ? fenceInfo.Files[hoveredItemIndex] : null;
+
+            Invalidate(new Rectangle(0, titleHeight, Width, Math.Max(0, Height - titleHeight)));
         }
 
-        private void ThumbnailProvider_IconThumbnailLoaded(object sender, EventArgs e)
+        private void ThumbnailProvider_IconThumbnailLoaded(object sender,
+            ThumbnailProvider.ThumbnailLoadedEventArgs e)
         {
-            Invalidate();
+            if (IsDisposed || !IsHandleCreated)
+                return;
+
+            if (InvokeRequired)
+            {
+                BeginInvoke(new EventHandler<ThumbnailProvider.ThumbnailLoadedEventArgs>(
+                    ThumbnailProvider_IconThumbnailLoaded), sender, e);
+                return;
+            }
+
+            InvalidateIconGlow(e.Path);
         }
 
         private bool ItemExists(string path)
@@ -1083,6 +1268,8 @@ namespace 窗格
             logicalTitleHeight = GlobalFenceSettings.TitleHeight;
             titleHeight = GlobalFenceSettings.HideTitleArea ? 0 : LogicalToDeviceUnits(logicalTitleHeight);
             minifyToolStripMenuItem.Enabled = !GlobalFenceSettings.HideTitleArea;
+            ClearRenderCache();
+            UpdatePointerGlowBitmap();
             ReloadFonts();
 
             if (wasMinified && !GlobalFenceSettings.HideTitleArea)
@@ -1162,6 +1349,7 @@ namespace 窗格
 
             selectedItem = replacementPath;
             hoveringItem = replacementPath;
+            ClearRenderCache();
             Invalidate();
         }
 
