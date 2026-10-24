@@ -1,14 +1,25 @@
 {
-  "Enhance UI visuals with blurred effects for icons and text in FenceWindow, and add utility methods for creating blurred colors and tints in FluentTheme": "优化窗格中的图标和文字模糊效果，并在 FluentTheme 中添加模糊颜色和色调工具方法",
-  "Implement theme customization options in AdvancedSettingsForm and update FluentTheme for light/dark mode support": "在高级设置中添加主题自定义选项，并让 FluentTheme 支持浅色和深色模式",
-  "Refactor AdvancedSettingsForm to center on screen and enhance FenceWindow with rounded corners for improved UI aesthetics": "调整高级设置窗口的位置，并为窗格添加圆角以改善界面外观",
-  "Refactor UI button styling for consistent appearance and improved hover effects": "统一界面按钮样式并改进悬停效果",
-  "Enhance UI with Fluent Design and improve dialog layouts for better user experience": "采用 Fluent Design 优化界面，并改进对话框布局",
-  "Update release workflow to include .NET Framework installer and enhance README for clarity on downloads": "更新发布流程以包含 .NET Framework 安装程序，并完善下载说明",
-  "Add release notes generation to GitHub Actions workflow and update documentation": "在 GitHub Actions 工作流中添加发布说明生成，并更新相关文档",
-  "Add glow effects customization options in AdvancedSettingsForm and update rendering logic in FenceWindow": "在高级设置中添加光效自定义选项，并更新窗格的渲染逻辑",
-  "Refactor AdvancedSettingsForm to open modelessly and update usage in FenceWindow and TrayIconController": "将高级设置窗口改为非模态打开，并更新窗格和托盘图标控制器中的调用",
-  "Add content scaling and startup registration options in Advanced Settings": "在高级设置中添加内容缩放和开机启动选项",
-  "Add handling for skipped fence paths during startup and persist settings": "添加启动时跳过分区路径的处理，并保存相关设置",
-  "Update release notes header to use a more prominent heading level": "提高发布说明标题的级别以增强醒目程度"
+  "metadata": {
+    "heading": "更新内容",
+    "translationPending": "（中文翻译待补充）",
+    "noChanges": "自上一个版本以来没有新的提交。"
+  },
+  "commits": {
+    "Enhance UI visuals with blurred effects for icons and text in FenceWindow, and add utility methods for creating blurred colors and tints in FluentTheme": "优化窗格中的图标和文字模糊效果，并在 FluentTheme 中添加模糊颜色和色调工具方法",
+    "Implement theme customization options in AdvancedSettingsForm and update FluentTheme for light/dark mode support": "在高级设置中添加主题自定义选项，并让 FluentTheme 支持浅色和深色模式",
+    "Refactor AdvancedSettingsForm to center on screen and enhance FenceWindow with rounded corners for improved UI aesthetics": "调整高级设置窗口的位置，并为窗格添加圆角以改善界面外观",
+    "Refactor UI button styling for consistent appearance and improved hover effects": "统一界面按钮样式并改进悬停效果",
+    "Enhance UI with Fluent Design and improve dialog layouts for better user experience": "采用 Fluent Design 优化界面，并改进对话框布局",
+    "Update release workflow to include .NET Framework installer and enhance README for clarity on downloads": "更新发布流程以包含 .NET Framework 安装程序，并完善下载说明",
+    "Add release notes generation to GitHub Actions workflow and update documentation": "在 GitHub Actions 工作流中添加发布说明生成，并更新相关文档",
+    "Add glow effects customization options in AdvancedSettingsForm and update rendering logic in FenceWindow": "在高级设置中添加光效自定义选项，并更新窗格的渲染逻辑",
+    "Refactor AdvancedSettingsForm to open modelessly and update usage in FenceWindow and TrayIconController": "将高级设置窗口改为非模态打开，并更新窗格和托盘图标控制器中的调用",
+    "Add content scaling and startup registration options in Advanced Settings": "在高级设置中添加内容缩放和开机启动选项",
+    "Add handling for skipped fence paths during startup and persist settings": "添加启动时跳过分区路径的处理，并保存相关设置",
+    "Update release notes header to use a more prominent heading level": "提高发布说明标题的级别以增强醒目程度",
+    "Implement item index retrieval and visibility range calculation in FenceLayout; enhance thumbnail icon handling in FenceEntry and ThumbnailProvider": "在 FenceLayout 中实现项目索引检索和可见范围计算；改进 FenceEntry 和 ThumbnailProvider 的缩略图图标处理",
+    "Refactor Fence Management and UI Components": "重构桌面分区管理和界面组件",
+    "Refactor UI text handling to use resource files for localization": "重构界面文本处理，使用资源文件实现本地化",
+    "Fix Windows PowerShell encoding in bilingual release notes": "修复 Windows PowerShell 生成双语发布说明时的编码问题"
+  }
 }

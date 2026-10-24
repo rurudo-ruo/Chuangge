@@ -105,17 +105,17 @@ jobs:
           }
           $translations = Get-Content -Path $translationPath -Raw -Encoding UTF8 | ConvertFrom-Json
 
-          $notes = @('### 更新内容 / Changes', '')
+          $notes = @("### $($translations.metadata.heading) / Changes", '')
           foreach ($commit in $commits) {
             $parts = $commit -split "`t", 2
             if ($parts.Count -eq 2) {
               $subject = $parts[1]
               $shortSha = $parts[0].Substring(0, 7)
               $commitUrl = "https://github.com/$env:GITHUB_REPOSITORY/commit/$($parts[0])"
-              $translation = $translations.PSObject.Properties[$subject]
+              $translation = $translations.commits.PSObject.Properties[$subject]
               if ($null -eq $translation) {
                 Write-Warning "No Simplified Chinese translation is defined for commit subject: $subject"
-                $translatedSubject = '（中文翻译待补充）'
+                $translatedSubject = $translations.metadata.translationPending
               } else {
                 $translatedSubject = [string]$translation.Value
               }
@@ -127,7 +127,7 @@ jobs:
 
           if ($commits.Count -eq 0) {
             $notes += '- No commits found since the previous release.'
-            $notes += '  - 自上一个版本以来没有新的提交。'
+            $notes += "  - $($translations.metadata.noChanges)"
           }
 
           if ($previousTag) {
@@ -136,7 +136,10 @@ jobs:
             $notes += "[Full changelog]($compareUrl)"
           }
 
-          Set-Content -Path 'release-notes.md' -Value $notes -Encoding utf8
+          [System.IO.File]::WriteAllLines(
+            (Join-Path $env:GITHUB_WORKSPACE 'release-notes.md'),
+            [string[]]$notes,
+            ([System.Text.UTF8Encoding]::new($false)))
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
