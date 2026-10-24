@@ -55,9 +55,9 @@ namespace 窗格
         private readonly ShellContextMenu shellContextMenu = new ShellContextMenu();
 
         private readonly ThumbnailProvider thumbnailProvider = new ThumbnailProvider();
-        private readonly ToolStripMenuItem locateMissingFileItem = new ToolStripMenuItem("Locate replacement file...");
-        private readonly ToolStripMenuItem locateMissingFolderItem = new ToolStripMenuItem("Locate replacement folder...");
-        private readonly ToolStripMenuItem openMissingParentItem = new ToolStripMenuItem("Open containing folder");
+        private readonly ToolStripMenuItem locateMissingFileItem = new ToolStripMenuItem(UiText.Get("Locate replacement file..."));
+        private readonly ToolStripMenuItem locateMissingFolderItem = new ToolStripMenuItem(UiText.Get("Locate replacement folder..."));
+        private readonly ToolStripMenuItem openMissingParentItem = new ToolStripMenuItem(UiText.Get("Open containing folder"));
         private readonly ToolStripSeparator missingItemSeparator = new ToolStripSeparator();
         private string removeItemText;
 
@@ -117,7 +117,7 @@ namespace 窗格
             lockedToolStripMenuItem.Checked = fenceInfo.Locked;
             minifyToolStripMenuItem.Checked = fenceInfo.CanMinify;
             minifyToolStripMenuItem.Enabled = !GlobalFenceSettings.HideTitleArea;
-            titleSizeToolStripMenuItem.Text = "Global title size...";
+            titleSizeToolStripMenuItem.Text = UiText.Get("Global title size...");
             removeItemText = deleteItemToolStripMenuItem.Text;
             appContextMenu.Items.Insert(0, locateMissingFileItem);
             appContextMenu.Items.Insert(1, locateMissingFolderItem);
@@ -258,15 +258,15 @@ namespace 窗格
             catch (IOException ex)
             {
                 e.Cancel = true;
-                MessageBox.Show(this, "Could not save this fence before closing. The fence was kept open to protect its saved data."
-                    + Environment.NewLine + ex.Message, "Fence could not be saved",
+                MessageBox.Show(this, UiText.Get("Could not save this fence before closing. The fence was kept open to protect its saved data.")
+                    + Environment.NewLine + ex.Message, UiText.Get("Fence could not be saved"),
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             catch (UnauthorizedAccessException ex)
             {
                 e.Cancel = true;
-                MessageBox.Show(this, "Could not save this fence before closing. The fence was kept open to protect its saved data."
-                    + Environment.NewLine + ex.Message, "Fence could not be saved",
+                MessageBox.Show(this, UiText.Get("Could not save this fence before closing. The fence was kept open to protect its saved data.")
+                    + Environment.NewLine + ex.Message, UiText.Get("Fence could not be saved"),
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -274,8 +274,8 @@ namespace 窗格
         private void exitToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (MessageBox.Show(this,
-                "Really remove this fence and its saved copies, including recovery backups?",
-                "Remove fence", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                UiText.Get("Really remove this fence and its saved copies, including recovery backups?"),
+                UiText.Get("Remove fence"), MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 try
                 {
@@ -285,13 +285,13 @@ namespace 窗格
                 }
                 catch (IOException ex)
                 {
-                    MessageBox.Show(this, "Could not remove all saved copies of this fence. It may reappear when 窗格 starts again." +
-                        Environment.NewLine + ex.Message, "Fence could not be removed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show(this, UiText.Get("Could not remove all saved copies of this fence. It may reappear when 窗格 starts again.") +
+                        Environment.NewLine + ex.Message, UiText.Get("Fence could not be removed"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 catch (UnauthorizedAccessException ex)
                 {
-                    MessageBox.Show(this, "Could not remove all saved copies of this fence. It may reappear when 窗格 starts again." +
-                        Environment.NewLine + ex.Message, "Fence could not be removed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show(this, UiText.Get("Could not remove all saved copies of this fence. It may reappear when 窗格 starts again.") +
+                        Environment.NewLine + ex.Message, UiText.Get("Fence could not be removed"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
@@ -339,7 +339,7 @@ namespace 窗格
             openMissingParentItem.Visible = missingItem;
             missingItemSeparator.Visible = missingItem;
             deleteItemToolStripMenuItem.Visible = hoveringItem != null;
-            deleteItemToolStripMenuItem.Text = missingItem ? "Remove missing item" : removeItemText;
+            deleteItemToolStripMenuItem.Text = missingItem ? UiText.Get("Remove missing item") : removeItemText;
             openMissingParentItem.Enabled = missingItem && GetExistingParentDirectory(hoveringItem) != null;
         }
 
@@ -424,17 +424,17 @@ namespace 窗格
                     catch (IOException ex)
                     {
                         RemoveDroppedItems(addedPaths);
-                        MessageBox.Show(this, ex.Message, "Could not save fence items", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show(this, ex.Message, UiText.Get("Could not save fence items"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                     catch (UnauthorizedAccessException ex)
                     {
                         RemoveDroppedItems(addedPaths);
-                        MessageBox.Show(this, ex.Message, "Could not save fence items", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show(this, ex.Message, UiText.Get("Could not save fence items"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                     catch (InvalidOperationException ex)
                     {
                         RemoveDroppedItems(addedPaths);
-                        MessageBox.Show(this, ex.Message, "Could not save fence items", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show(this, ex.Message, UiText.Get("Could not save fence items"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
             }
@@ -568,18 +568,18 @@ namespace 窗格
             }
             catch (IOException ex)
             {
-                MessageBox.Show(source, "The item could not be restored to its original fence: " + ex.Message,
-                    "Fence move could not be rolled back", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(source, UiText.Get("The item could not be restored to its original fence:") + " " + ex.Message,
+                    UiText.Get("Fence move could not be rolled back"), MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             catch (UnauthorizedAccessException ex)
             {
-                MessageBox.Show(source, "The item could not be restored to its original fence: " + ex.Message,
-                    "Fence move could not be rolled back", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(source, UiText.Get("The item could not be restored to its original fence:") + " " + ex.Message,
+                    UiText.Get("Fence move could not be rolled back"), MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             catch (InvalidOperationException ex)
             {
-                MessageBox.Show(source, "The item could not be restored to its original fence: " + ex.Message,
-                    "Fence move could not be rolled back", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(source, UiText.Get("The item could not be restored to its original fence:") + " " + ex.Message,
+                    UiText.Get("Fence move could not be rolled back"), MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
 
             var destinationIndex = fenceInfo.Files.FindIndex(item =>
@@ -593,18 +593,18 @@ namespace 窗格
             }
             catch (IOException ex)
             {
-                MessageBox.Show(this, "The item could not be removed from this fence during rollback: " + ex.Message,
-                    "Fence move could not be rolled back", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, UiText.Get("The item could not be removed from this fence during rollback:") + " " + ex.Message,
+                    UiText.Get("Fence move could not be rolled back"), MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             catch (UnauthorizedAccessException ex)
             {
-                MessageBox.Show(this, "The item could not be removed from this fence during rollback: " + ex.Message,
-                    "Fence move could not be rolled back", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, UiText.Get("The item could not be removed from this fence during rollback:") + " " + ex.Message,
+                    UiText.Get("Fence move could not be rolled back"), MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             catch (InvalidOperationException ex)
             {
-                MessageBox.Show(this, "The item could not be removed from this fence during rollback: " + ex.Message,
-                    "Fence move could not be rolled back", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, UiText.Get("The item could not be removed from this fence during rollback:") + " " + ex.Message,
+                    UiText.Get("Fence move could not be rolled back"), MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
 
             source.Invalidate();
@@ -618,7 +618,7 @@ namespace 窗格
 
         private void ShowItemSaveError(Exception ex)
         {
-            MessageBox.Show(this, ex.Message, "Could not save fence item", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(this, ex.Message, UiText.Get("Could not save fence item"), MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
         private void ClearDragInsertionMarker()
@@ -1125,7 +1125,7 @@ namespace 窗格
                 {
                     if (string.IsNullOrWhiteSpace(dialog.NewName))
                     {
-                        MessageBox.Show(this, "A fence name cannot be empty.", "Invalid fence name",
+                        MessageBox.Show(this, UiText.Get("A fence name cannot be empty."), UiText.Get("Invalid fence name"),
                             MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         return;
                     }
@@ -1140,7 +1140,7 @@ namespace 窗格
 
         private void newFenceToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            FenceManager.Instance.CreateFence("New fence");
+            FenceManager.Instance.CreateFence(UiText.Get("New fence"));
         }
 
         private void FenceWindow_FormClosed(object sender, FormClosedEventArgs e)
@@ -1313,7 +1313,7 @@ namespace 窗格
 
         private void LocateMissingFileItem_Click(object sender, EventArgs e)
         {
-            using (var dialog = new OpenFileDialog { CheckFileExists = true, Title = "Locate replacement file" })
+            using (var dialog = new OpenFileDialog { CheckFileExists = true, Title = UiText.Get("Locate replacement file") })
             {
                 var directory = GetExistingParentDirectory(hoveringItem);
                 if (directory != null)
@@ -1326,7 +1326,7 @@ namespace 窗格
 
         private void LocateMissingFolderItem_Click(object sender, EventArgs e)
         {
-            using (var dialog = new FolderBrowserDialog { Description = "Select the replacement folder" })
+            using (var dialog = new FolderBrowserDialog { Description = UiText.Get("Select the replacement folder") })
             {
                 var directory = GetExistingParentDirectory(hoveringItem);
                 if (directory != null)
@@ -1349,7 +1349,7 @@ namespace 窗格
             }
             catch (Win32Exception ex)
             {
-                MessageBox.Show(this, ex.Message, "Could not open containing folder", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, ex.Message, UiText.Get("Could not open containing folder"), MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -1357,14 +1357,14 @@ namespace 窗格
         {
             if (!ItemExists(replacementPath))
             {
-                MessageBox.Show(this, "The selected file or folder no longer exists.", "Cannot update fence item",
+                MessageBox.Show(this, UiText.Get("The selected file or folder no longer exists."), UiText.Get("Cannot update fence item"),
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
             if (fenceInfo.Files.Exists(path => string.Equals(path, replacementPath, StringComparison.OrdinalIgnoreCase)))
             {
-                MessageBox.Show(this, "That file or folder is already in this fence.", "Cannot update fence item",
+                MessageBox.Show(this, UiText.Get("That file or folder is already in this fence."), UiText.Get("Cannot update fence item"),
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
@@ -1382,13 +1382,13 @@ namespace 窗格
             catch (IOException ex)
             {
                 fenceInfo.Files[index] = previousPath;
-                MessageBox.Show(this, ex.Message, "Could not save fence item", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, ex.Message, UiText.Get("Could not save fence item"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
             catch (UnauthorizedAccessException ex)
             {
                 fenceInfo.Files[index] = previousPath;
-                MessageBox.Show(this, ex.Message, "Could not save fence item", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, ex.Message, UiText.Get("Could not save fence item"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 

@@ -99,18 +99,35 @@ jobs:
             throw 'Unable to read commit history for release notes.'
           }
 
-          $notes = @('### Changes', '')
+          $translationPath = Join-Path $env:GITHUB_WORKSPACE '.github\release-notes-zh-CN.json'
+          if (-not (Test-Path $translationPath)) {
+            throw "Release note translation file was not found: $translationPath"
+          }
+          $translations = Get-Content -Path $translationPath -Raw -Encoding UTF8 | ConvertFrom-Json
+
+          $notes = @('### 更新内容 / Changes', '')
           foreach ($commit in $commits) {
             $parts = $commit -split "`t", 2
             if ($parts.Count -eq 2) {
+              $subject = $parts[1]
               $shortSha = $parts[0].Substring(0, 7)
               $commitUrl = "https://github.com/$env:GITHUB_REPOSITORY/commit/$($parts[0])"
-              $notes += "- $($parts[1]) ([${shortSha}]($commitUrl))"
+              $translation = $translations.PSObject.Properties[$subject]
+              if ($null -eq $translation) {
+                Write-Warning "No Simplified Chinese translation is defined for commit subject: $subject"
+                $translatedSubject = '（中文翻译待补充）'
+              } else {
+                $translatedSubject = [string]$translation.Value
+              }
+
+              $notes += "- $subject ([${shortSha}]($commitUrl))"
+              $notes += "  - $translatedSubject"
             }
           }
 
           if ($commits.Count -eq 0) {
             $notes += '- No commits found since the previous release.'
+            $notes += '  - 自上一个版本以来没有新的提交。'
           }
 
           if ($previousTag) {

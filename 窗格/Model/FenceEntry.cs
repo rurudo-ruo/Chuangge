@@ -15,7 +15,7 @@ namespace 窗格.Model
         public EntryType Type { get; }
 
         public string Name => System.IO.Path.GetFileNameWithoutExtension(Path)
-            + (Type == EntryType.Missing ? " (missing)" : string.Empty);
+            + (Type == EntryType.Missing ? UiText.Get("MissingItemSuffix") : string.Empty);
 
         private FenceEntry(string path, EntryType type)
         {

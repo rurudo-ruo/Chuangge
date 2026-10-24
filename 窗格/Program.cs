@@ -32,7 +32,7 @@ namespace 窗格
                     {
                         var loadResult = FenceManager.Instance.LoadFences();
                         if (Application.OpenForms.Count == 0)
-                            FenceManager.Instance.CreateFence("First fence");
+                            FenceManager.Instance.CreateFence(UiText.Get("First fence"));
 
                         var skippedPaths = loadResult.SkippedPaths
                             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -41,15 +41,14 @@ namespace 窗格
                         string settingsError;
                         if (ShouldShowSkippedPathsWarning(skippedPaths, out settingsError))
                         {
-                            var message = "Some fence data could not be loaded from these paths:"
+                            var message = UiText.Get("Some fence data could not be loaded from these paths:")
                                 + Environment.NewLine + string.Join(Environment.NewLine, skippedPaths)
                                 + Environment.NewLine + Environment.NewLine
-                                + "To inspect the data, open Advanced Settings and use the fence data folder. "
-                                + "This warning will not repeat unless the skipped paths change or a clean load occurs first.";
+                                + UiText.Get("To inspect the data, open Advanced Settings and use the fence data folder. This warning will not repeat unless the skipped paths change or a clean load occurs first.");
                             if (settingsError != null)
                             {
                                 message += Environment.NewLine + Environment.NewLine
-                                    + "The warning preference could not be saved, so this message may appear again."
+                                    + UiText.Get("The warning preference could not be saved, so this message may appear again.")
                                     + Environment.NewLine + settingsError;
                             }
 

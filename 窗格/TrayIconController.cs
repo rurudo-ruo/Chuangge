@@ -13,10 +13,10 @@ namespace 窗格
         public TrayIconController()
         {
             contextMenu = new ContextMenuStrip();
-            contextMenu.Items.Add("New fence", null, NewFence_Click);
-            contextMenu.Items.Add("Advanced settings...", null, AdvancedSettings_Click);
+            contextMenu.Items.Add(UiText.Get("New fence"), null, NewFence_Click);
+            contextMenu.Items.Add(UiText.Get("Advanced settings"), null, AdvancedSettings_Click);
             contextMenu.Items.Add(new ToolStripSeparator());
-            contextMenu.Items.Add("Exit", null, Exit_Click);
+            contextMenu.Items.Add(UiText.Get("Exit"), null, Exit_Click);
 
             notifyIcon = new NotifyIcon
             {
@@ -37,7 +37,7 @@ namespace 窗格
 
         private static void NewFence_Click(object sender, EventArgs e)
         {
-            FenceManager.Instance.CreateFence("New fence");
+            FenceManager.Instance.CreateFence(UiText.Get("New fence"));
         }
 
         private static void AdvancedSettings_Click(object sender, EventArgs e)

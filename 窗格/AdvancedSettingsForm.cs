@@ -72,7 +72,7 @@ namespace 窗格
 
         public AdvancedSettingsForm()
         {
-            Text = "窗格 - Advanced settings";
+            Text = "窗格 - " + UiText.Get("Advanced settings");
             StartPosition = FormStartPosition.Manual;
             FormBorderStyle = FormBorderStyle.Sizable;
             MaximizeBox = false;
@@ -111,14 +111,14 @@ namespace 窗格
                 AutoSize = true,
                 Font = FluentTheme.HeadingFont,
                 Margin = new Padding(0, 0, 0, 4),
-                Text = "Appearance"
+                Text = UiText.Get("Appearance")
             };
             notice = new Label
             {
                 AutoSize = true,
                 ForeColor = FluentTheme.SecondaryText,
                 Margin = new Padding(0),
-                Text = "These global appearance settings apply to all fences."
+                Text = UiText.Get("These global appearance settings apply to all fences.")
             };
             pageHeader.Controls.Add(pageTitle, 0, 0);
             pageHeader.Controls.Add(notice, 0, 1);
@@ -151,7 +151,7 @@ namespace 窗格
                 AutoSize = true,
                 Font = new Font(FluentTheme.BodyFont, FontStyle.Bold),
                 Margin = new Padding(0, 0, 0, 12),
-                Text = "Fence titles"
+                Text = UiText.Get("Fence titles")
             };
             appearanceLayout.Controls.Add(appearanceHeading, 0, 0);
             appearanceLayout.SetColumnSpan(appearanceHeading, 2);
@@ -160,7 +160,7 @@ namespace 窗格
                 Anchor = AnchorStyles.Left,
                 AutoSize = true,
                 Margin = new Padding(0, 0, 16, 4),
-                Text = "Global title size"
+                Text = UiText.Get("Global title size")
             };
             var titleSize = new NumericUpDown
             {
@@ -177,7 +177,7 @@ namespace 窗格
                 AutoSize = true,
                 ForeColor = FluentTheme.SecondaryText,
                 Margin = new Padding(0, 0, 0, 12),
-                Text = "Overrides each fence's saved title size; saved values are preserved."
+                Text = UiText.Get("Overrides each fence's saved title size; saved values are preserved.")
             };
             appearanceLayout.Controls.Add(titleLabel, 0, 1);
             appearanceLayout.Controls.Add(titleSize, 1, 1);
@@ -187,7 +187,7 @@ namespace 窗格
             {
                 AutoSize = true,
                 Margin = new Padding(0, 2, 0, 0),
-                Text = "Hide title bars and title text (hold Alt and drag to move)",
+                Text = UiText.Get("Hide title bars and title text (hold Alt and drag to move)"),
                 Checked = GlobalFenceSettings.HideTitleArea
             };
             appearanceLayout.Controls.Add(hideTitles, 0, 3);
@@ -219,13 +219,13 @@ namespace 窗格
                 AutoSize = true,
                 Font = new Font(FluentTheme.BodyFont, FontStyle.Bold),
                 Margin = new Padding(0, 0, 0, 10),
-                Text = "Theme"
+                Text = UiText.Get("Theme")
             };
             useSystemTheme = new CheckBox
             {
                 AutoSize = true,
                 Margin = new Padding(0, 0, 0, 12),
-                Text = "Use Windows display mode and theme color",
+                Text = UiText.Get("Use Windows display mode and theme color"),
                 Checked = GlobalFenceSettings.UseSystemTheme
             };
             var manualThemeLayout = new TableLayoutPanel
@@ -245,7 +245,7 @@ namespace 窗格
                 Anchor = AnchorStyles.Left,
                 AutoSize = true,
                 Margin = new Padding(0, 4, 8, 0),
-                Text = "Display mode"
+                Text = UiText.Get("Display mode")
             };
             displayMode = new ComboBox
             {
@@ -253,14 +253,14 @@ namespace 窗格
                 Dock = DockStyle.Fill,
                 Margin = new Padding(0, 0, 16, 0)
             };
-            displayMode.Items.AddRange(new object[] { "Light", "Dark" });
-            displayMode.SelectedItem = GlobalFenceSettings.DisplayMode;
+            displayMode.Items.AddRange(new object[] { UiText.Get("Light"), UiText.Get("Dark") });
+            displayMode.SelectedIndex = GlobalFenceSettings.IsDisplayModeDark(GlobalFenceSettings.DisplayMode) ? 1 : 0;
             var accentLabel = new Label
             {
                 Anchor = AnchorStyles.Left,
                 AutoSize = true,
                 Margin = new Padding(0, 4, 8, 0),
-                Text = "Theme color"
+                Text = UiText.Get("Theme color")
             };
             customAccentColor = GlobalFenceSettings.CustomAccentColor;
             accentColorButton = new Button
@@ -285,7 +285,7 @@ namespace 窗格
                 AutoSize = true,
                 Font = new Font(FluentTheme.BodyFont, FontStyle.Bold),
                 Margin = new Padding(0, 16, 0, 8),
-                Text = "Overlay intensity"
+                Text = UiText.Get("Overlay intensity")
             };
             var darkOverlayRow = new TableLayoutPanel
             {
@@ -303,7 +303,7 @@ namespace 窗格
                 Anchor = AnchorStyles.Left,
                 AutoSize = true,
                 Margin = new Padding(0),
-                Text = "Dark mode"
+                Text = UiText.Get("Dark mode")
             };
             darkOverlayOpacity = CreateOverlaySlider(GlobalFenceSettings.DarkOverlayOpacity);
             darkOverlayValue = CreateOverlayValueLabel(darkOverlayOpacity.Value);
@@ -328,7 +328,7 @@ namespace 窗格
                 Anchor = AnchorStyles.Left,
                 AutoSize = true,
                 Margin = new Padding(0),
-                Text = "Light mode"
+                Text = UiText.Get("Light mode")
             };
             lightOverlayOpacity = CreateOverlaySlider(GlobalFenceSettings.LightOverlayOpacity);
             lightOverlayValue = CreateOverlayValueLabel(lightOverlayOpacity.Value);
@@ -368,13 +368,13 @@ namespace 窗格
                 AutoSize = true,
                 Font = new Font(FluentTheme.BodyFont, FontStyle.Bold),
                 Margin = new Padding(0, 0, 0, 10),
-                Text = "Glow effects"
+                Text = UiText.Get("Glow effects")
             };
             glowEffectsEnabled = new CheckBox
             {
                 AutoSize = true,
                 Margin = new Padding(0, 0, 0, 8),
-                Text = "Enable pointer and icon glow",
+                Text = UiText.Get("Enable pointer and icon glow"),
                 Checked = GlobalFenceSettings.GlowEffectsEnabled
             };
             var pointerColorRow = new TableLayoutPanel
@@ -392,7 +392,7 @@ namespace 窗格
                 Anchor = AnchorStyles.Left,
                 AutoSize = true,
                 Margin = new Padding(0, 4, 8, 4),
-                Text = "Pointer highlight color"
+                Text = UiText.Get("Pointer highlight color")
             };
             pointerGlowColor = GlobalFenceSettings.PointerGlowColor;
             pointerGlowColorButton = new Button
@@ -426,13 +426,13 @@ namespace 窗格
             glowLayout.Controls.Add(glowHeading, 0, 0);
             glowLayout.Controls.Add(glowEffectsEnabled, 0, 1);
             glowLayout.Controls.Add(pointerColorRow, 0, 2);
-            glowLayout.Controls.Add(CreateGlowSliderRow("Pointer highlight intensity",
+            glowLayout.Controls.Add(CreateGlowSliderRow(UiText.Get("Pointer highlight intensity"),
                 pointerGlowIntensity, pointerGlowIntensityValue), 0, 3);
-            glowLayout.Controls.Add(CreateGlowSliderRow("Pointer highlight size",
+            glowLayout.Controls.Add(CreateGlowSliderRow(UiText.Get("Pointer highlight size"),
                 pointerGlowRadius, pointerGlowRadiusValue), 0, 4);
-            glowLayout.Controls.Add(CreateGlowSliderRow("Icon glow intensity",
+            glowLayout.Controls.Add(CreateGlowSliderRow(UiText.Get("Icon glow intensity"),
                 iconGlowIntensity, iconGlowIntensityValue), 0, 5);
-            glowLayout.Controls.Add(CreateGlowSliderRow("Icon glow spread",
+            glowLayout.Controls.Add(CreateGlowSliderRow(UiText.Get("Icon glow spread"),
                 iconGlowRadius, iconGlowRadiusValue), 0, 6);
             glowCard.Controls.Add(glowLayout);
             glowEffectsEnabled.CheckedChanged += (sender, e) => UpdateGlowControlsEnabled();
@@ -463,7 +463,7 @@ namespace 窗格
                 AutoSize = true,
                 Font = new Font(FluentTheme.BodyFont, FontStyle.Bold),
                 Margin = new Padding(0, 0, 0, 8),
-                Text = "Fence content size"
+                Text = UiText.Get("Fence content size")
             };
             contentScale = CreateGlowSlider(50, 200, GlobalFenceSettings.ContentScalePercent, 25);
             contentScaleValue = CreateGlowValueLabel(contentScale.Value, "%");
@@ -475,11 +475,10 @@ namespace 窗格
                 ForeColor = FluentTheme.SecondaryText,
                 Margin = new Padding(0, 4, 0, 0),
                 Tag = "FluentSecondaryText",
-                Text = "Scales thumbnails, labels, and spacing independently of Windows display scaling. "
-                    + "Existing fence dimensions stay unchanged; use Modify all to resize them."
+                Text = UiText.Get("Scales thumbnails, labels, and spacing independently of Windows display scaling. Existing fence dimensions stay unchanged; use Modify all to resize them.")
             };
             contentScaleLayout.Controls.Add(contentScaleHeading, 0, 0);
-            contentScaleLayout.Controls.Add(CreateGlowSliderRow("Content scale",
+            contentScaleLayout.Controls.Add(CreateGlowSliderRow(UiText.Get("Content scale"),
                 contentScale, contentScaleValue), 0, 1);
             contentScaleLayout.Controls.Add(contentScaleHint, 0, 2);
             contentScaleCard.Controls.Add(contentScaleLayout);
@@ -508,7 +507,7 @@ namespace 窗格
             {
                 AutoSize = true,
                 Margin = new Padding(0, 0, 0, 4),
-                Text = "Start NoFences when I sign in",
+                Text = UiText.Get("Start NoFences when I sign in"),
                 Checked = StartupRegistration.IsEnabled
             };
             var startupHint = new Label
@@ -517,7 +516,7 @@ namespace 窗格
                 ForeColor = FluentTheme.SecondaryText,
                 Margin = new Padding(0),
                 Tag = "FluentSecondaryText",
-                Text = "Uses a removable shortcut in your personal Startup folder; no registry entry or service is added."
+                Text = UiText.Get("Uses a removable shortcut in your personal Startup folder; no registry entry or service is added.")
             };
             startupLayout.Controls.Add(startWithWindows, 0, 0);
             startupLayout.Controls.Add(startupHint, 0, 1);
@@ -549,7 +548,7 @@ namespace 窗格
                 AutoSize = true,
                 Font = new Font(FluentTheme.BodyFont, FontStyle.Bold),
                 Margin = new Padding(0, 0, 0, 8),
-                Text = "Fence data folder:"
+                Text = UiText.Get("Fence data folder:")
             };
             var folderPath = new TextBox
             {
@@ -580,13 +579,13 @@ namespace 窗格
                 ForeColor = FluentTheme.SecondaryText,
                 Margin = new Padding(0, 6, 16, 0),
                 Tag = "FluentSecondaryText",
-                Text = "Fit each fence to its current thumbnail columns and rows:"
+                Text = UiText.Get("Fit each fence to its current thumbnail columns and rows:")
             };
             var modifyAllButton = new Button
             {
                 AutoSize = true,
                 MinimumSize = new Size(112, 34),
-                Text = "Modify all"
+                Text = UiText.Get("Modify all")
             };
             modifyAllButton.Click += ModifyAllButton_Click;
             fitActions.Controls.Add(fitDescription);
@@ -604,7 +603,7 @@ namespace 窗格
             {
                 AutoSize = true,
                 MinimumSize = new Size(144, 34),
-                Text = "Open data folder"
+                Text = UiText.Get("Open data folder")
             };
             openFolderButton.Click += OpenFolderButton_Click;
 
@@ -633,7 +632,7 @@ namespace 窗格
                 AutoSize = true,
                 MinimumSize = new Size(96, 34),
                 Margin = new Padding(0, 0, 8, 0),
-                Text = "Close"
+                Text = UiText.Get("Close")
             };
             closeButton.Click += (sender, e) => Close();
             var applyButton = new Button
@@ -641,7 +640,7 @@ namespace 窗格
                 AutoSize = true,
                 MinimumSize = new Size(96, 34),
                 Margin = new Padding(0),
-                Text = "Apply"
+                Text = UiText.Get("Apply")
             };
             primaryActionButton = applyButton;
             applyButton.Click += (sender, e) =>
@@ -649,7 +648,7 @@ namespace 窗格
                 try
                 {
                     GlobalFenceSettings.Update((int)titleSize.Value, hideTitles.Checked,
-                        useSystemTheme.Checked, displayMode.SelectedItem as string ?? "Light",
+                        useSystemTheme.Checked, displayMode.SelectedIndex == 1 ? "Dark" : "Light",
                         customAccentColor.ToArgb(), darkOverlayOpacity.Value, lightOverlayOpacity.Value,
                         glowEffectsEnabled.Checked, pointerGlowColor.ToArgb(), pointerGlowIntensity.Value,
                         pointerGlowRadius.Value, iconGlowIntensity.Value, iconGlowRadius.Value,
@@ -657,30 +656,30 @@ namespace 窗格
                     StartupRegistration.SetEnabled(startWithWindows.Checked);
                     FluentTheme.ApplyToForm(this, applyButton);
                     UpdatePointerGlowColorButton();
-                    statusLabel.Text = "Saved.";
+                    statusLabel.Text = UiText.Get("Saved.");
                 }
                 catch (System.Configuration.ConfigurationErrorsException ex)
                 {
-                    MessageBox.Show(this, ex.Message, "Settings could not be saved", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show(this, ex.Message, UiText.Get("Settings could not be saved"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 catch (System.InvalidOperationException ex)
                 {
-                    MessageBox.Show(this, ex.Message, "Windows startup could not be updated",
+                    MessageBox.Show(this, ex.Message, UiText.Get("Windows startup could not be updated"),
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 catch (System.UnauthorizedAccessException ex)
                 {
-                    MessageBox.Show(this, ex.Message, "Windows startup could not be updated",
+                    MessageBox.Show(this, ex.Message, UiText.Get("Windows startup could not be updated"),
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 catch (System.IO.IOException ex)
                 {
-                    MessageBox.Show(this, ex.Message, "Windows startup could not be updated",
+                    MessageBox.Show(this, ex.Message, UiText.Get("Windows startup could not be updated"),
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 catch (System.Runtime.InteropServices.COMException ex)
                 {
-                    MessageBox.Show(this, ex.Message, "Windows startup could not be updated",
+                    MessageBox.Show(this, ex.Message, UiText.Get("Windows startup could not be updated"),
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             };
@@ -943,14 +942,14 @@ namespace 窗格
             var fences = Application.OpenForms.OfType<FenceWindow>().ToArray();
             if (fences.Length == 0)
             {
-                MessageBox.Show(this, "There are no loaded fences to modify.", "Modify all fences",
+                MessageBox.Show(this, UiText.Get("There are no loaded fences to modify."), UiText.Get("Modify all fences"),
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
             var confirmation = MessageBox.Show(this,
-                "Resize and save all fences to fit their current thumbnail columns and rows? Each fence's current column count will be preserved.",
-                "Modify all fences", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                UiText.Get("Resize and save all fences to fit their current thumbnail columns and rows? Each fence's current column count will be preserved."),
+                UiText.Get("Modify all fences"), MessageBoxButtons.YesNo, MessageBoxIcon.Question);
             if (confirmation != DialogResult.Yes)
                 return;
 
@@ -974,14 +973,14 @@ namespace 窗格
             if (errors.Length > 0)
             {
                 MessageBox.Show(this,
-                    "Modified and saved " + modifiedCount + " fence(s). These fences could not be saved:" +
+                    string.Format(UiText.Get("Modified and saved {0} fence(s). These fences could not be saved:"), modifiedCount) +
                     Environment.NewLine + errors,
-                    "Some fences could not be modified", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    UiText.Get("Some fences could not be modified"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             else
             {
-                MessageBox.Show(this, "Modified and saved " + modifiedCount + " fence(s).",
-                    "Modify all fences", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(this, string.Format(UiText.Get("Modified and saved {0} fence(s)."), modifiedCount),
+                    UiText.Get("Modify all fences"), MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
     }

@@ -27,7 +27,7 @@ namespace 窗格.Util
 
             var shellType = Type.GetTypeFromProgID("WScript.Shell");
             if (shellType == null)
-                throw new InvalidOperationException("Windows Script Host is unavailable, so the startup shortcut could not be created.");
+                throw new InvalidOperationException(UiText.Get("Windows Script Host is unavailable, so the startup shortcut could not be created."));
 
             object shell = null;
             object shortcut = null;
@@ -42,12 +42,12 @@ namespace 窗格.Util
                 shortcutType.InvokeMember("WorkingDirectory", BindingFlags.SetProperty,
                     null, shortcut, new object[] { Application.StartupPath });
                 shortcutType.InvokeMember("Description", BindingFlags.SetProperty,
-                    null, shortcut, new object[] { "Start NoFences when you sign in" });
+                    null, shortcut, new object[] { UiText.Get("Start NoFences when you sign in") });
                 shortcutType.InvokeMember("Save", BindingFlags.InvokeMethod, null, shortcut, null);
             }
             catch (TargetInvocationException ex)
             {
-                throw new InvalidOperationException("Windows could not update the startup shortcut.",
+                throw new InvalidOperationException(UiText.Get("Windows could not update the startup shortcut."),
                     ex.InnerException ?? ex);
             }
             finally
@@ -63,7 +63,7 @@ namespace 窗格.Util
         {
             var startupFolder = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
             if (string.IsNullOrWhiteSpace(startupFolder))
-                throw new InvalidOperationException("The current user's Windows Startup folder could not be located.");
+                throw new InvalidOperationException(UiText.Get("The current user's Windows Startup folder could not be located."));
 
             return Path.Combine(startupFolder, ShortcutName);
         }

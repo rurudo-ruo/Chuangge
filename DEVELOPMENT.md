@@ -28,7 +28,11 @@ The Release executable is created at `窗格\bin\Release\窗格.exe`. The target
 
 ## GitHub releases
 
-Pushing a tag matching `v*` starts `.github/workflows/release.yml`. It uses `actions/checkout@v5` (Node.js 24) and discovers MSBuild through Visual Studio's `vswhere.exe`. The workflow constructs the Unicode app name from code points in PowerShell so Windows PowerShell does not corrupt the solution or asset paths. It builds the Release configuration and attaches two assets: an EXE-only download and a ZIP containing only the app executable and Microsoft's .NET Framework 4.8 web installer. The workflow checks the downloaded installer's Authenticode signature and requires a valid Microsoft Corporation signer. Release notes list first-parent commit subjects since the previous reachable tag and link to each commit and the full comparison. The web installer downloads runtime components from Microsoft and requires internet access; it is not an offline runtime bundle.
+Pushing a tag matching `v*` starts `.github/workflows/release.yml`. It uses `actions/checkout@v5` (Node.js 24) and discovers MSBuild through Visual Studio's `vswhere.exe`. The workflow constructs the Unicode app name from code points in PowerShell so Windows PowerShell does not corrupt the solution or asset paths. It builds the Release configuration and attaches two assets: an EXE-only download and a ZIP containing only the app executable and Microsoft's .NET Framework 4.8 web installer. The workflow checks the downloaded installer's Authenticode signature and requires a valid Microsoft Corporation signer. Release notes list first-parent commit subjects since the previous reachable tag, with English and Simplified Chinese text, links to each commit, and a full comparison. Maintain translations in `.github/release-notes-zh-CN.json`, keyed by the exact English commit subject; unmapped subjects are marked for translation and reported as workflow warnings. The web installer downloads runtime components from Microsoft and requires internet access; it is not an offline runtime bundle.
+
+## Localization
+
+The UI follows the current Windows UI language. Runtime text uses `UiText.resx` with a Simplified Chinese translation in `UiText.zh-CN.resx`; missing translations fall back to English. Designer-based dialogs and fence menus use their corresponding `.zh-CN.resx` files. Add new user-facing text to both the default and translated resources.
 
 ## Display scaling
 

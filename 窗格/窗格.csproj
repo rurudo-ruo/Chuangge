@@ -73,6 +73,7 @@
     <Compile Include="Model\FenceManager.cs" />
     <Compile Include="GlobalFenceSettings.cs" />
     <Compile Include="FluentTheme.cs" />
+    <Compile Include="UiText.cs" />
     <Compile Include="AdvancedSettingsForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -122,6 +123,11 @@
     </EmbeddedResource>
     <EmbeddedResource Include="HeightDialog.zh-CN.resx">
       <DependentUpon>HeightDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UiText.resx">
+    </EmbeddedResource>
+    <EmbeddedResource Include="UiText.zh-CN.resx">
+      <DependentUpon>UiText.resx</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
