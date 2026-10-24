@@ -1,7 +1,6 @@
 using 窗格.Model;
 using 窗格.Util;
 using 窗格.Win32;
-using Peter;
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -23,7 +22,8 @@ namespace 窗格
         private const int logicalItemPadding = 12;
         private const float logicalIconFontSize = 9;
 
-        private readonly FenceInfo fenceInfo;
+        private readonly FenceViewModel viewModel;
+        private FenceInfo fenceInfo => viewModel.Info;
 
         private Font titleFont;
         private Font iconFont;
@@ -49,8 +49,8 @@ namespace 窗格
         private int scrollHeight;
         private int scrollOffset;
 
-        private readonly ThrottledExecution throttledMove = new ThrottledExecution(TimeSpan.FromSeconds(4));
-        private readonly ThrottledExecution throttledResize = new ThrottledExecution(TimeSpan.FromSeconds(4));
+        private readonly DebouncedAction debouncedMove;
+        private readonly DebouncedAction debouncedResize;
 
         private readonly ShellContextMenu shellContextMenu = new ShellContextMenu();
 
@@ -84,6 +84,9 @@ namespace 窗格
 
         public FenceWindow(FenceInfo fenceInfo)
         {
+            viewModel = new FenceViewModel(fenceInfo, FenceManager.Instance);
+            debouncedMove = new DebouncedAction(TimeSpan.FromMilliseconds(500), ShowDeferredSaveError);
+            debouncedResize = new DebouncedAction(TimeSpan.FromMilliseconds(500), ShowDeferredSaveError);
             InitializeComponent();
             appContextMenu.RenderMode = ToolStripRenderMode.System;
             appContextMenu.Font = FluentTheme.BodyFont;
@@ -106,7 +109,6 @@ namespace 窗格
             AllowDrop = true;
 
 
-            this.fenceInfo = fenceInfo;
             Text = fenceInfo.Name;
             Location = new Point(fenceInfo.PosX, fenceInfo.PosY);
 
@@ -236,6 +238,8 @@ namespace 窗格
             GlobalFenceSettings.Changed -= GlobalFenceSettings_Changed;
             thumbnailProvider.IconThumbnailLoaded -= ThumbnailProvider_IconThumbnailLoaded;
             thumbnailProvider.Dispose();
+            debouncedMove.Dispose();
+            debouncedResize.Dispose();
             titleFont?.Dispose();
             iconFont?.Dispose();
             base.OnFormClosed(e);
@@ -249,20 +253,15 @@ namespace 窗格
 
             try
             {
+                debouncedMove.Cancel();
+                debouncedResize.Cancel();
                 fenceInfo.PosX = Location.X;
                 fenceInfo.PosY = Location.Y;
                 fenceInfo.Width = Width;
                 fenceInfo.Height = isMinified ? prevHeight : Height;
                 Save();
             }
-            catch (IOException ex)
-            {
-                e.Cancel = true;
-                MessageBox.Show(this, UiText.Get("Could not save this fence before closing. The fence was kept open to protect its saved data.")
-                    + Environment.NewLine + ex.Message, UiText.Get("Fence could not be saved"),
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            catch (UnauthorizedAccessException ex)
+            catch (Exception ex) when (IsFenceSaveError(ex))
             {
                 e.Cancel = true;
                 MessageBox.Show(this, UiText.Get("Could not save this fence before closing. The fence was kept open to protect its saved data.")
@@ -302,27 +301,12 @@ namespace 窗格
             if (itemIndex < 0)
                 return;
 
-            var removedItem = fenceInfo.Files[itemIndex];
-            fenceInfo.Files.RemoveAt(itemIndex);
             try
             {
-                Save();
+                viewModel.RemoveItemAt(itemIndex);
             }
-            catch (IOException ex)
+            catch (Exception ex) when (IsFenceSaveError(ex))
             {
-                fenceInfo.Files.Insert(itemIndex, removedItem);
-                ShowItemSaveError(ex);
-                return;
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                fenceInfo.Files.Insert(itemIndex, removedItem);
-                ShowItemSaveError(ex);
-                return;
-            }
-            catch (InvalidOperationException ex)
-            {
-                fenceInfo.Files.Insert(itemIndex, removedItem);
                 ShowItemSaveError(ex);
                 return;
             }
@@ -404,38 +388,14 @@ namespace 窗格
                 if (dropped == null)
                     return;
 
-                var addedPaths = new System.Collections.Generic.List<string>();
-                foreach (var file in dropped)
+                try
                 {
-                    if (!ItemExists(file) || fenceInfo.Files.Exists(path =>
-                        string.Equals(path, file, StringComparison.OrdinalIgnoreCase)))
-                        continue;
-
-                    fenceInfo.Files.Add(file);
-                    addedPaths.Add(file);
+                    viewModel.AddExistingItems(dropped);
                 }
-
-                if (addedPaths.Count > 0)
+                catch (Exception ex) when (IsFenceSaveError(ex))
                 {
-                    try
-                    {
-                        Save();
-                    }
-                    catch (IOException ex)
-                    {
-                        RemoveDroppedItems(addedPaths);
-                        MessageBox.Show(this, ex.Message, UiText.Get("Could not save fence items"), MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                    catch (UnauthorizedAccessException ex)
-                    {
-                        RemoveDroppedItems(addedPaths);
-                        MessageBox.Show(this, ex.Message, UiText.Get("Could not save fence items"), MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                    catch (InvalidOperationException ex)
-                    {
-                        RemoveDroppedItems(addedPaths);
-                        MessageBox.Show(this, ex.Message, UiText.Get("Could not save fence items"), MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
+                    MessageBox.Show(this, ex.Message, UiText.Get("Could not save fence items"),
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
             finally
@@ -443,12 +403,6 @@ namespace 窗格
                 ClearDragInsertionMarker();
                 Invalidate();
             }
-        }
-
-        private void RemoveDroppedItems(System.Collections.Generic.List<string> paths)
-        {
-            foreach (var path in paths)
-                fenceInfo.Files.Remove(path);
         }
 
         private void MoveFenceItem(FenceItemDragData dragData, int insertionIndex)
@@ -462,163 +416,45 @@ namespace 窗格
             if (sourceIndex < 0)
                 return;
 
-            insertionIndex = Math.Max(0, Math.Min(insertionIndex, fenceInfo.Files.Count));
-            if (source == this)
-            {
-                var originalFiles = new System.Collections.Generic.List<string>(fenceInfo.Files);
-                var targetIndex = insertionIndex;
-                if (sourceIndex < targetIndex)
-                    targetIndex--;
-
-                if (sourceIndex == targetIndex)
-                    return;
-
-                var path = fenceInfo.Files[sourceIndex];
-                fenceInfo.Files.RemoveAt(sourceIndex);
-                fenceInfo.Files.Insert(Math.Max(0, Math.Min(targetIndex, fenceInfo.Files.Count)), path);
-                try
-                {
-                    Save();
-                    selectedItem = path;
-                }
-                catch (IOException ex)
-                {
-                    RestoreFileOrder(originalFiles);
-                    ShowItemSaveError(ex);
-                }
-                catch (UnauthorizedAccessException ex)
-                {
-                    RestoreFileOrder(originalFiles);
-                    ShowItemSaveError(ex);
-                }
-                catch (InvalidOperationException ex)
-                {
-                    RestoreFileOrder(originalFiles);
-                    ShowItemSaveError(ex);
-                }
-
-                Invalidate();
-                return;
-            }
-
-            if (fenceInfo.Files.Exists(path =>
-                string.Equals(path, dragData.Path, StringComparison.OrdinalIgnoreCase)))
-                return;
-
-            var originalSourceIndex = sourceIndex;
-            fenceInfo.Files.Insert(insertionIndex, dragData.Path);
             try
             {
-                Save();
+                if (source == this)
+                {
+                    if (!viewModel.ReorderItem(sourceIndex, insertionIndex))
+                        return;
+                    selectedItem = dragData.Path;
+                }
+                else
+                {
+                    if (!viewModel.MoveItemFrom(source.viewModel, dragData.Path, sourceIndex, insertionIndex))
+                        return;
+                    selectedItem = dragData.Path;
+                    source.selectedItem = null;
+                    source.Invalidate();
+                }
             }
-            catch (IOException ex)
+            catch (Exception ex) when (IsFenceSaveError(ex))
             {
-                fenceInfo.Files.RemoveAt(insertionIndex);
                 ShowItemSaveError(ex);
-                return;
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                fenceInfo.Files.RemoveAt(insertionIndex);
-                ShowItemSaveError(ex);
-                return;
-            }
-            catch (InvalidOperationException ex)
-            {
-                fenceInfo.Files.RemoveAt(insertionIndex);
-                ShowItemSaveError(ex);
-                return;
             }
 
-            source.fenceInfo.Files.RemoveAt(originalSourceIndex);
-            try
-            {
-                source.Save();
-            }
-            catch (IOException ex)
-            {
-                RollBackCrossFenceMove(source, originalSourceIndex, dragData.Path);
-                ShowItemSaveError(ex);
-                return;
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                RollBackCrossFenceMove(source, originalSourceIndex, dragData.Path);
-                ShowItemSaveError(ex);
-                return;
-            }
-            catch (InvalidOperationException ex)
-            {
-                RollBackCrossFenceMove(source, originalSourceIndex, dragData.Path);
-                ShowItemSaveError(ex);
-                return;
-            }
-
-            selectedItem = dragData.Path;
-            source.selectedItem = null;
-            source.Invalidate();
-        }
-
-        private void RollBackCrossFenceMove(FenceWindow source, int sourceIndex, string path)
-        {
-            source.fenceInfo.Files.Insert(sourceIndex, path);
-            try
-            {
-                source.Save();
-            }
-            catch (IOException ex)
-            {
-                MessageBox.Show(source, UiText.Get("The item could not be restored to its original fence:") + " " + ex.Message,
-                    UiText.Get("Fence move could not be rolled back"), MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                MessageBox.Show(source, UiText.Get("The item could not be restored to its original fence:") + " " + ex.Message,
-                    UiText.Get("Fence move could not be rolled back"), MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            catch (InvalidOperationException ex)
-            {
-                MessageBox.Show(source, UiText.Get("The item could not be restored to its original fence:") + " " + ex.Message,
-                    UiText.Get("Fence move could not be rolled back"), MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-
-            var destinationIndex = fenceInfo.Files.FindIndex(item =>
-                string.Equals(item, path, StringComparison.OrdinalIgnoreCase));
-            if (destinationIndex >= 0)
-                fenceInfo.Files.RemoveAt(destinationIndex);
-
-            try
-            {
-                Save();
-            }
-            catch (IOException ex)
-            {
-                MessageBox.Show(this, UiText.Get("The item could not be removed from this fence during rollback:") + " " + ex.Message,
-                    UiText.Get("Fence move could not be rolled back"), MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                MessageBox.Show(this, UiText.Get("The item could not be removed from this fence during rollback:") + " " + ex.Message,
-                    UiText.Get("Fence move could not be rolled back"), MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            catch (InvalidOperationException ex)
-            {
-                MessageBox.Show(this, UiText.Get("The item could not be removed from this fence during rollback:") + " " + ex.Message,
-                    UiText.Get("Fence move could not be rolled back"), MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-
-            source.Invalidate();
-        }
-
-        private void RestoreFileOrder(System.Collections.Generic.List<string> originalFiles)
-        {
-            fenceInfo.Files.Clear();
-            fenceInfo.Files.AddRange(originalFiles);
+            Invalidate();
         }
 
         private void ShowItemSaveError(Exception ex)
         {
             MessageBox.Show(this, ex.Message, UiText.Get("Could not save fence item"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+
+        private void ShowDeferredSaveError(Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, UiText.Get("Fence could not be saved"),
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+
+        private static bool IsFenceSaveError(Exception ex)
+        {
+            return ex is IOException || ex is UnauthorizedAccessException || ex is InvalidOperationException;
         }
 
         private void ClearDragInsertionMarker()
@@ -629,7 +465,7 @@ namespace 窗格
 
         private void FenceWindow_Resize(object sender, EventArgs e)
         {
-            throttledResize.Run(() =>
+            debouncedResize.Schedule(() =>
             {
                 fenceInfo.Width = Width;
                 fenceInfo.Height = isMinified ? prevHeight : Height;
@@ -713,72 +549,21 @@ namespace 窗格
 
         private int GetDropInsertionIndex(Point point)
         {
-            if (fenceInfo.Files.Count == 0)
-                return 0;
-
-            var itemPadding = ContentToDeviceUnits(logicalItemPadding);
-            var itemWidth = ContentToDeviceUnits(logicalItemWidth);
-            var iconSize = ContentToDeviceUnits(logicalIconSize);
-            var textHeight = ContentToDeviceUnits(logicalTextHeight);
-            var itemHeight = iconSize + itemPadding + textHeight;
-            var rowTop = GetItemBounds(0).Top;
-            var closestRowDistance = int.MaxValue;
-
-            for (var i = 0; i < fenceInfo.Files.Count; i++)
-            {
-                var bounds = GetItemBounds(i);
-                var centerY = bounds.Top + itemHeight / 2;
-                var distance = Math.Abs(point.Y - centerY);
-                if (distance < closestRowDistance)
-                {
-                    closestRowDistance = distance;
-                    rowTop = bounds.Top;
-                }
-            }
-
-            var insertionIndex = 0;
-            for (var i = 0; i < fenceInfo.Files.Count; i++)
-            {
-                var bounds = GetItemBounds(i);
-                if (bounds.Top != rowTop)
-                    continue;
-
-                if (point.X < bounds.Left + bounds.Width / 2)
-                    return i;
-                insertionIndex = i + 1;
-            }
-
-            if (point.Y > rowTop + itemHeight / 2)
-            {
-                for (var i = 0; i < fenceInfo.Files.Count; i++)
-                    if (GetItemBounds(i).Top > rowTop)
-                        return i;
-            }
-
-            return insertionIndex;
+            return CreateLayout().GetDropInsertionIndex(point, fenceInfo.Files.Count);
         }
 
         private Rectangle GetItemBounds(int index)
         {
+            return CreateLayout().GetItemBounds(index);
+        }
+
+        private FenceLayout CreateLayout()
+        {
             var itemPadding = ContentToDeviceUnits(logicalItemPadding);
             var itemWidth = ContentToDeviceUnits(logicalItemWidth);
-            var iconSize = ContentToDeviceUnits(logicalIconSize);
-            var textHeight = ContentToDeviceUnits(logicalTextHeight);
-            var itemHeight = iconSize + itemPadding + textHeight;
-            var x = itemPadding;
-            var y = itemPadding;
-
-            for (var i = 0; i < index; i++)
-            {
-                x += itemWidth + itemPadding;
-                if (x + itemWidth > Width)
-                {
-                    x = itemPadding;
-                    y += itemHeight + itemPadding;
-                }
-            }
-
-            return new Rectangle(x, y + titleHeight - scrollOffset, itemWidth, itemHeight);
+            var itemHeight = ContentToDeviceUnits(logicalIconSize)
+                + itemPadding + ContentToDeviceUnits(logicalTextHeight);
+            return new FenceLayout(Width, titleHeight, scrollOffset, itemPadding, itemWidth, itemHeight);
         }
 
         private void FenceWindow_MouseEnter(object sender, EventArgs e)
@@ -819,9 +604,15 @@ namespace 窗格
                 Height = prevHeight;
                 isMinified = false;
             }
-            fenceInfo.CanMinify = minifyToolStripMenuItem.Checked;
-            Save();
-
+            try
+            {
+                viewModel.SetCanMinify(minifyToolStripMenuItem.Checked);
+            }
+            catch (Exception ex) when (IsFenceSaveError(ex))
+            {
+                minifyToolStripMenuItem.Checked = fenceInfo.CanMinify;
+                ShowItemSaveError(ex);
+            }
         }
 
         private void FenceWindow_Click(object sender, EventArgs e)
@@ -879,39 +670,25 @@ namespace 窗格
                 }
             }
 
-            var itemPadding = ContentToDeviceUnits(logicalItemPadding);
+            var layout = CreateLayout();
             var itemWidth = ContentToDeviceUnits(logicalItemWidth);
             var iconSize = ContentToDeviceUnits(logicalIconSize);
             var textHeight = ContentToDeviceUnits(logicalTextHeight);
-            var itemHeight = iconSize + itemPadding + textHeight;
-            var x = itemPadding;
-            var y = itemPadding;
-            scrollHeight = 0;
             graphics.SetClip(new Rectangle(0, titleHeight, Width, Math.Max(0, Height - titleHeight)));
-            foreach (var file in fenceInfo.Files)
+            for (var i = 0; i < fenceInfo.Files.Count; i++)
             {
-                var entry = FenceEntry.FromPath(file);
+                var entry = FenceEntry.FromPath(fenceInfo.Files[i]);
                 if (entry == null)
                     continue;
 
-                RenderEntry(graphics, entry, x, y + titleHeight - scrollOffset, itemWidth, textHeight, iconSize);
-
-                var itemBottom = y + itemHeight;
-                if (itemBottom > scrollHeight)
-                    scrollHeight = itemBottom;
-
-                x += itemWidth + itemPadding;
-                if (x + itemWidth > Width)
-                {
-                    x = itemPadding;
-                    y += itemHeight + itemPadding;
-                }
+                var bounds = layout.GetItemBounds(i);
+                RenderEntry(graphics, entry, bounds.Left, bounds.Top, itemWidth, textHeight, iconSize);
             }
 
             if (dragInsertionIndex >= 0)
                 DrawDragInsertionMarker(graphics);
 
-            scrollHeight -= (ClientRectangle.Height - titleHeight);
+            scrollHeight = layout.GetContentOverflow(fenceInfo.Files.Count, ClientRectangle.Height - titleHeight);
 
             // Scroll bars
             if (scrollHeight > 0)
@@ -1130,17 +907,24 @@ namespace 窗格
                         return;
                     }
 
-                    Text = dialog.NewName;
-                    fenceInfo.Name = Text;
-                    Refresh();
-                    Save();
+                    try
+                    {
+                        viewModel.Rename(dialog.NewName);
+                        Text = dialog.NewName;
+                        Refresh();
+                    }
+                    catch (Exception ex) when (IsFenceSaveError(ex))
+                    {
+                        MessageBox.Show(this, ex.Message, UiText.Get("Fence could not be saved"),
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
             }
         }
 
         private void newFenceToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            FenceManager.Instance.CreateFence(UiText.Get("New fence"));
+            FenceWindowCoordinator.CreateFence(UiText.Get("New fence"));
         }
 
         private void FenceWindow_FormClosed(object sender, FormClosedEventArgs e)
@@ -1149,27 +933,16 @@ namespace 窗格
                 Application.Exit();
         }
 
-        private readonly object saveLock = new object();
         private void Save()
         {
-            lock (saveLock)
-            {
-                FenceManager.Instance.UpdateFence(fenceInfo);
-            }
+            viewModel.Save();
         }
 
         internal bool FitBoundsToCurrentLayout()
         {
-            var itemPadding = ContentToDeviceUnits(logicalItemPadding);
-            var itemWidth = ContentToDeviceUnits(logicalItemWidth);
-            var iconSize = ContentToDeviceUnits(logicalIconSize);
-            var textHeight = ContentToDeviceUnits(logicalTextHeight);
-            var itemHeight = iconSize + itemPadding + textHeight;
-            var columns = Math.Max(1, (Width - itemPadding) / (itemWidth + itemPadding));
-            var rows = (fenceInfo.Files.Count + columns - 1) / columns;
-            var targetWidth = itemPadding + columns * (itemWidth + itemPadding);
-            var targetHeight = titleHeight + (Math.Max(1, rows) + 1) * itemPadding
-                + rows * itemHeight;
+            var targetSize = CreateLayout().GetFitSize(fenceInfo.Files.Count);
+            var targetWidth = targetSize.Width;
+            var targetHeight = targetSize.Height;
             var currentExpandedHeight = isMinified ? prevHeight : Height;
             if (Width == targetWidth && currentExpandedHeight == targetHeight
                 && fenceInfo.Width == targetWidth && fenceInfo.Height == targetHeight)
@@ -1214,7 +987,7 @@ namespace 窗格
 
         private void FenceWindow_LocationChanged(object sender, EventArgs e)
         {
-            throttledMove.Run(() =>
+            debouncedMove.Schedule(() =>
             {
                 fenceInfo.PosX = Location.X;
                 fenceInfo.PosY = Location.Y;
@@ -1224,8 +997,15 @@ namespace 窗格
 
         private void lockedToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            fenceInfo.Locked = lockedToolStripMenuItem.Checked;
-            Save();
+            try
+            {
+                viewModel.SetLocked(lockedToolStripMenuItem.Checked);
+            }
+            catch (Exception ex) when (IsFenceSaveError(ex))
+            {
+                lockedToolStripMenuItem.Checked = fenceInfo.Locked;
+                ShowItemSaveError(ex);
+            }
         }
 
         private void FenceWindow_Load(object sender, EventArgs e)
@@ -1369,25 +1149,13 @@ namespace 窗格
                 return;
             }
 
-            var index = fenceInfo.Files.IndexOf(hoveringItem);
-            if (index < 0)
-                return;
-
-            var previousPath = fenceInfo.Files[index];
-            fenceInfo.Files[index] = replacementPath;
             try
             {
-                Save();
+                if (!viewModel.ReplaceItem(hoveringItem, replacementPath))
+                    return;
             }
-            catch (IOException ex)
+            catch (Exception ex) when (IsFenceSaveError(ex))
             {
-                fenceInfo.Files[index] = previousPath;
-                MessageBox.Show(this, ex.Message, UiText.Get("Could not save fence item"), MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                fenceInfo.Files[index] = previousPath;
                 MessageBox.Show(this, ex.Message, UiText.Get("Could not save fence item"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }

@@ -4,6 +4,16 @@
 
 窗格 is a 64-bit Windows Forms application targeting **.NET Framework 4.8**. The solution is `窗格.sln`, and the project is in `窗格\窗格.csproj`.
 
+## Code structure
+
+- `Model\FenceManager.cs` loads and saves fence data without creating UI. `FenceWindowCoordinator` is responsible for turning loaded or newly created fence records into windows.
+- `FenceViewModel` owns fence-item and setting mutations, including rollback when a save fails. `FenceLayout` holds the shared item-positioning, drop-target, overflow, and fit-size calculations used by the window.
+- `FenceWindow` handles drawing and interaction. Move and resize persistence is debounced while the window is active, with the latest geometry saved synchronously before closing.
+- `AdvancedSettingsForm` composes settings sections from dedicated controls in `SettingsSectionControls.cs`; `SettingsSectionControl` provides their shared card presentation.
+- Shell context-menu interop is grouped under `Win32`, including its supporting hook and exception types.
+
+The project uses an explicit source-file list in `窗格\窗格.csproj`, so new `.cs` files must be added there. No automated test project is currently configured. For changes to persistence, layout, or settings, validate with the Release build and manually verify loading existing layouts, adding/removing/reordering items, moving items between fences, resizing/moving and closing fences, and applying settings.
+
 ## Prerequisites
 
 - Windows

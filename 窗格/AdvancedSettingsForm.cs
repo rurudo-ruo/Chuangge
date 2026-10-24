@@ -14,17 +14,16 @@ namespace 窗格
         private static AdvancedSettingsForm currentInstance;
         private readonly TableLayoutPanel contentLayout;
         private readonly Label notice;
-        private readonly Label titleSizeHint;
+        private readonly FenceTitleSettingsControl fenceTitleSettings;
+        private readonly ContentScaleSettingsControl contentScaleSettings;
+        private readonly StartupSettingsControl startupSettings;
         private readonly CheckBox useSystemTheme;
         private readonly ComboBox displayMode;
         private readonly Button accentColorButton;
         private readonly TrackBar darkOverlayOpacity;
         private readonly TrackBar lightOverlayOpacity;
-        private readonly TrackBar contentScale;
-        private readonly CheckBox startWithWindows;
         private readonly Label darkOverlayValue;
         private readonly Label lightOverlayValue;
-        private readonly Label contentScaleValue;
         private readonly CheckBox glowEffectsEnabled;
         private readonly Button pointerGlowColorButton;
         private readonly TrackBar pointerGlowIntensity;
@@ -73,6 +72,9 @@ namespace 窗格
         public AdvancedSettingsForm()
         {
             Text = "窗格 - " + UiText.Get("Advanced settings");
+            fenceTitleSettings = new FenceTitleSettingsControl();
+            contentScaleSettings = new ContentScaleSettingsControl();
+            startupSettings = new StartupSettingsControl();
             StartPosition = FormStartPosition.Manual;
             FormBorderStyle = FormBorderStyle.Sizable;
             MaximizeBox = false;
@@ -123,86 +125,7 @@ namespace 窗格
             pageHeader.Controls.Add(pageTitle, 0, 0);
             pageHeader.Controls.Add(notice, 0, 1);
 
-            var appearanceCard = new Panel
-            {
-                AutoSize = true,
-                BackColor = FluentTheme.Surface,
-                Dock = DockStyle.Top,
-                Margin = new Padding(0, 0, 0, 12),
-                Padding = new Padding(16),
-                Tag = "FluentSurface"
-            };
-            var appearanceLayout = new TableLayoutPanel
-            {
-                AutoSize = true,
-                ColumnCount = 2,
-                Dock = DockStyle.Top,
-                Margin = new Padding(0),
-                RowCount = 4
-            };
-            appearanceLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            appearanceLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            appearanceLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            appearanceLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            appearanceLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            appearanceLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            var appearanceHeading = new Label
-            {
-                AutoSize = true,
-                Font = new Font(FluentTheme.BodyFont, FontStyle.Bold),
-                Margin = new Padding(0, 0, 0, 12),
-                Text = UiText.Get("Fence titles")
-            };
-            appearanceLayout.Controls.Add(appearanceHeading, 0, 0);
-            appearanceLayout.SetColumnSpan(appearanceHeading, 2);
-            var titleLabel = new Label
-            {
-                Anchor = AnchorStyles.Left,
-                AutoSize = true,
-                Margin = new Padding(0, 0, 16, 4),
-                Text = UiText.Get("Global title size")
-            };
-            var titleSize = new NumericUpDown
-            {
-                Anchor = AnchorStyles.Right,
-                Margin = new Padding(0, 0, 0, 4),
-                MinimumSize = new Size(96, 28),
-                Minimum = 16,
-                Maximum = 100,
-                Value = GlobalFenceSettings.TitleHeight
-            };
-
-            titleSizeHint = new Label
-            {
-                AutoSize = true,
-                ForeColor = FluentTheme.SecondaryText,
-                Margin = new Padding(0, 0, 0, 12),
-                Text = UiText.Get("Overrides each fence's saved title size; saved values are preserved.")
-            };
-            appearanceLayout.Controls.Add(titleLabel, 0, 1);
-            appearanceLayout.Controls.Add(titleSize, 1, 1);
-            appearanceLayout.Controls.Add(titleSizeHint, 0, 2);
-            appearanceLayout.SetColumnSpan(titleSizeHint, 2);
-            var hideTitles = new CheckBox
-            {
-                AutoSize = true,
-                Margin = new Padding(0, 2, 0, 0),
-                Text = UiText.Get("Hide title bars and title text (hold Alt and drag to move)"),
-                Checked = GlobalFenceSettings.HideTitleArea
-            };
-            appearanceLayout.Controls.Add(hideTitles, 0, 3);
-            appearanceLayout.SetColumnSpan(hideTitles, 2);
-            appearanceCard.Controls.Add(appearanceLayout);
-
-            var themeCard = new Panel
-            {
-                AutoSize = true,
-                BackColor = FluentTheme.Surface,
-                Dock = DockStyle.Top,
-                Margin = new Padding(0, 0, 0, 12),
-                Padding = new Padding(16),
-                Tag = "FluentSurface"
-            };
+            var themeCard = new SettingsSectionControl();
             var themeLayout = new TableLayoutPanel
             {
                 AutoSize = true,
@@ -343,15 +266,7 @@ namespace 窗格
             useSystemTheme.CheckedChanged += (sender, e) => UpdateManualThemeEnabled();
             UpdateManualThemeEnabled();
 
-            var glowCard = new Panel
-            {
-                AutoSize = true,
-                BackColor = FluentTheme.Surface,
-                Dock = DockStyle.Top,
-                Margin = new Padding(0, 0, 0, 12),
-                Padding = new Padding(16),
-                Tag = "FluentSurface"
-            };
+            var glowCard = new SettingsSectionControl();
             var glowLayout = new TableLayoutPanel
             {
                 AutoSize = true,
@@ -438,130 +353,9 @@ namespace 窗格
             glowEffectsEnabled.CheckedChanged += (sender, e) => UpdateGlowControlsEnabled();
             UpdateGlowControlsEnabled();
 
-            var contentScaleCard = new Panel
-            {
-                AutoSize = true,
-                BackColor = FluentTheme.Surface,
-                Dock = DockStyle.Top,
-                Margin = new Padding(0, 0, 0, 12),
-                Padding = new Padding(16),
-                Tag = "FluentSurface"
-            };
-            var contentScaleLayout = new TableLayoutPanel
-            {
-                AutoSize = true,
-                ColumnCount = 1,
-                Dock = DockStyle.Top,
-                Margin = new Padding(0),
-                RowCount = 3
-            };
-            contentScaleLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            for (var i = 0; i < contentScaleLayout.RowCount; i++)
-                contentScaleLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            var contentScaleHeading = new Label
-            {
-                AutoSize = true,
-                Font = new Font(FluentTheme.BodyFont, FontStyle.Bold),
-                Margin = new Padding(0, 0, 0, 8),
-                Text = UiText.Get("Fence content size")
-            };
-            contentScale = CreateGlowSlider(50, 200, GlobalFenceSettings.ContentScalePercent, 25);
-            contentScaleValue = CreateGlowValueLabel(contentScale.Value, "%");
-            contentScale.ValueChanged += (sender, e) =>
-                UpdateGlowValue(contentScale, contentScaleValue, "%");
-            var contentScaleHint = new Label
-            {
-                AutoSize = true,
-                ForeColor = FluentTheme.SecondaryText,
-                Margin = new Padding(0, 4, 0, 0),
-                Tag = "FluentSecondaryText",
-                Text = UiText.Get("Scales thumbnails, labels, and spacing independently of Windows display scaling. Existing fence dimensions stay unchanged; use Modify all to resize them.")
-            };
-            contentScaleLayout.Controls.Add(contentScaleHeading, 0, 0);
-            contentScaleLayout.Controls.Add(CreateGlowSliderRow(UiText.Get("Content scale"),
-                contentScale, contentScaleValue), 0, 1);
-            contentScaleLayout.Controls.Add(contentScaleHint, 0, 2);
-            contentScaleCard.Controls.Add(contentScaleLayout);
+            var storageCard = new FenceStorageSettingsControl();
+            storageCard.OpenFolderRequested += OpenFolderButton_Click;
 
-            var startupCard = new Panel
-            {
-                AutoSize = true,
-                BackColor = FluentTheme.Surface,
-                Dock = DockStyle.Top,
-                Margin = new Padding(0, 0, 0, 12),
-                Padding = new Padding(16),
-                Tag = "FluentSurface"
-            };
-            var startupLayout = new TableLayoutPanel
-            {
-                AutoSize = true,
-                ColumnCount = 1,
-                Dock = DockStyle.Top,
-                Margin = new Padding(0),
-                RowCount = 2
-            };
-            startupLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            startupLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            startupLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            startWithWindows = new CheckBox
-            {
-                AutoSize = true,
-                Margin = new Padding(0, 0, 0, 4),
-                Text = UiText.Get("Start NoFences when I sign in"),
-                Checked = StartupRegistration.IsEnabled
-            };
-            var startupHint = new Label
-            {
-                AutoSize = true,
-                ForeColor = FluentTheme.SecondaryText,
-                Margin = new Padding(0),
-                Tag = "FluentSecondaryText",
-                Text = UiText.Get("Uses a removable shortcut in your personal Startup folder; no registry entry or service is added.")
-            };
-            startupLayout.Controls.Add(startWithWindows, 0, 0);
-            startupLayout.Controls.Add(startupHint, 0, 1);
-            startupCard.Controls.Add(startupLayout);
-
-            var storageCard = new Panel
-            {
-                AutoSize = true,
-                BackColor = FluentTheme.Surface,
-                Dock = DockStyle.Top,
-                Margin = new Padding(0, 0, 0, 12),
-                Padding = new Padding(16),
-                Tag = "FluentSurface"
-            };
-            var storageLayout = new TableLayoutPanel
-            {
-                AutoSize = true,
-                ColumnCount = 1,
-                Dock = DockStyle.Top,
-                Margin = new Padding(0),
-                RowCount = 3
-            };
-            storageLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            storageLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            storageLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            storageLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            var folderHeading = new Label
-            {
-                AutoSize = true,
-                Font = new Font(FluentTheme.BodyFont, FontStyle.Bold),
-                Margin = new Padding(0, 0, 0, 8),
-                Text = UiText.Get("Fence data folder:")
-            };
-            var folderPath = new TextBox
-            {
-                Dock = DockStyle.Fill,
-                Multiline = true,
-                ReadOnly = true,
-                Margin = new Padding(0, 0, 0, 8),
-                MinimumSize = new Size(0, 48),
-                ScrollBars = ScrollBars.Vertical,
-                Text = FenceManager.Instance.DataDirectory
-            };
-            storageLayout.Controls.Add(folderHeading, 0, 0);
-            storageLayout.Controls.Add(folderPath, 0, 1);
             var fitActions = new FlowLayoutPanel
             {
                 AutoSize = true,
@@ -591,35 +385,6 @@ namespace 窗格
             fitActions.Controls.Add(fitDescription);
             fitActions.Controls.Add(modifyAllButton);
 
-            var folderActions = new FlowLayoutPanel
-            {
-                AutoSize = true,
-                Dock = DockStyle.Fill,
-                FlowDirection = FlowDirection.LeftToRight,
-                Margin = new Padding(0),
-                WrapContents = true
-            };
-            var openFolderButton = new Button
-            {
-                AutoSize = true,
-                MinimumSize = new Size(144, 34),
-                Text = UiText.Get("Open data folder")
-            };
-            openFolderButton.Click += OpenFolderButton_Click;
-
-            var statusLabel = new Label
-            {
-                AutoSize = true,
-                ForeColor = FluentTheme.SecondaryText,
-                Margin = new Padding(12, 9, 0, 0),
-                Tag = "FluentSecondaryText",
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            folderActions.Controls.Add(openFolderButton);
-            folderActions.Controls.Add(statusLabel);
-            storageLayout.Controls.Add(folderActions, 0, 2);
-            storageCard.Controls.Add(storageLayout);
-
             var settingActions = new FlowLayoutPanel
             {
                 AutoSize = true,
@@ -647,16 +412,16 @@ namespace 窗格
             {
                 try
                 {
-                    GlobalFenceSettings.Update((int)titleSize.Value, hideTitles.Checked,
+                    GlobalFenceSettings.Update(fenceTitleSettings.TitleHeight, fenceTitleSettings.HideTitleArea,
                         useSystemTheme.Checked, displayMode.SelectedIndex == 1 ? "Dark" : "Light",
                         customAccentColor.ToArgb(), darkOverlayOpacity.Value, lightOverlayOpacity.Value,
                         glowEffectsEnabled.Checked, pointerGlowColor.ToArgb(), pointerGlowIntensity.Value,
                         pointerGlowRadius.Value, iconGlowIntensity.Value, iconGlowRadius.Value,
-                        contentScale.Value);
-                    StartupRegistration.SetEnabled(startWithWindows.Checked);
+                        contentScaleSettings.ScalePercent);
+                    StartupRegistration.SetEnabled(startupSettings.IsEnabled);
                     FluentTheme.ApplyToForm(this, applyButton);
                     UpdatePointerGlowColorButton();
-                    statusLabel.Text = UiText.Get("Saved.");
+                    storageCard.SetStatus(UiText.Get("Saved."));
                 }
                 catch (System.Configuration.ConfigurationErrorsException ex)
                 {
@@ -702,9 +467,9 @@ namespace 窗格
             contentLayout.Controls.Add(pageHeader, 0, 0);
             contentLayout.Controls.Add(themeCard, 0, 1);
             contentLayout.Controls.Add(glowCard, 0, 2);
-            contentLayout.Controls.Add(appearanceCard, 0, 3);
-            contentLayout.Controls.Add(contentScaleCard, 0, 4);
-            contentLayout.Controls.Add(startupCard, 0, 5);
+            contentLayout.Controls.Add(fenceTitleSettings, 0, 3);
+            contentLayout.Controls.Add(contentScaleSettings, 0, 4);
+            contentLayout.Controls.Add(startupSettings, 0, 5);
             contentLayout.Controls.Add(storageCard, 0, 6);
             contentLayout.Controls.Add(fitActions, 0, 7);
             contentLayout.SizeChanged += ContentLayout_SizeChanged;
@@ -721,9 +486,7 @@ namespace 窗格
             settingsLayout.Controls.Add(contentLayout, 0, 0);
             settingsLayout.Controls.Add(footer, 0, 1);
             Controls.Add(settingsLayout);
-            appearanceCard.Tag = "FluentSurface";
             fitActions.Tag = "FluentSurface";
-            titleSizeHint.Tag = "FluentSecondaryText";
             notice.Tag = "FluentSecondaryText";
             FluentTheme.ApplyToForm(this, applyButton);
             UpdatePointerGlowColorButton();
@@ -929,7 +692,7 @@ namespace 窗格
         {
             var availableWidth = Math.Max(100, contentLayout.ClientSize.Width - contentLayout.Padding.Horizontal);
             notice.MaximumSize = new Size(availableWidth, 0);
-            titleSizeHint.MaximumSize = new Size(availableWidth, 0);
+            fenceTitleSettings.SetAvailableWidth(availableWidth);
         }
 
         private void OpenFolderButton_Click(object sender, EventArgs e)

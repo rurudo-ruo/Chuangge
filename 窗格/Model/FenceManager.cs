@@ -28,6 +28,7 @@ namespace 窗格.Model
 
         public sealed class FenceLoadResult
         {
+            public List<FenceInfo> Fences { get; } = new List<FenceInfo>();
             public List<string> SkippedPaths { get; } = new List<string>();
             public int LoadedFromJson { get; internal set; }
             public int LoadedFromBackup { get; internal set; }
@@ -85,7 +86,7 @@ namespace 窗格.Model
                     continue;
                 }
 
-                ShowFence(fence);
+                result.Fences.Add(fence);
                 loadedIds.Add(folderId);
             }
 
@@ -125,7 +126,7 @@ namespace 窗格.Model
                         continue;
                     }
 
-                    ShowFence(fence);
+                    result.Fences.Add(fence);
                     loadedIds.Add(folderId);
                     result.LoadedFromJson++;
                 }
@@ -175,7 +176,7 @@ namespace 窗格.Model
                         continue;
                     }
 
-                    ShowFence(fence);
+                    result.Fences.Add(fence);
                     loadedIds.Add(fenceId);
                     result.LoadedFromBackup++;
                 }
@@ -232,12 +233,7 @@ namespace 窗格.Model
             paths.Add(path);
         }
 
-        private static void ShowFence(FenceInfo fence)
-        {
-            new FenceWindow(fence).Show();
-        }
-
-        public void CreateFence(string name)
+        public FenceInfo CreateFence(string name)
         {
             var fenceInfo = new FenceInfo(Guid.NewGuid())
             {
@@ -249,7 +245,7 @@ namespace 窗格.Model
             };
 
             UpdateFence(fenceInfo);
-            new FenceWindow(fenceInfo).Show();
+            return fenceInfo;
         }
 
         public void RemoveFence(FenceInfo info)
@@ -277,9 +273,8 @@ namespace 窗格.Model
 
             var metaFile = Path.Combine(path, MetaFileName);
             var serializer = new XmlSerializer(typeof(FenceInfo));
-            var writer = new StreamWriter(metaFile);
-            serializer.Serialize(writer, fenceInfo);
-            writer.Close();
+            using (var writer = new StreamWriter(metaFile))
+                serializer.Serialize(writer, fenceInfo);
         }
 
         private void EnsureDirectoryExists(string dir)

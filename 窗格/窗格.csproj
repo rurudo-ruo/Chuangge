@@ -77,6 +77,11 @@
     <Compile Include="AdvancedSettingsForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="FenceLayout.cs" />
+    <Compile Include="FenceViewModel.cs" />
+    <Compile Include="FenceWindowCoordinator.cs" />
+    <Compile Include="SettingsSectionControl.cs" />
+    <Compile Include="SettingsSectionControls.cs" />
     <Compile Include="FenceWindow.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -88,13 +93,14 @@
     <Compile Include="TrayIconController.cs" />
     <Compile Include="Util\Extensions.cs" />
     <Compile Include="Util\StartupRegistration.cs" />
-    <Compile Include="Util\ThrottledExecution.cs" />
+    <Compile Include="Util\DebouncedAction.cs" />
     <Compile Include="Util\ThumbnailProvider.cs" />
     <Compile Include="Win32\BlurUtil.cs" />
     <Compile Include="Win32\DesktopUtil.cs" />
     <Compile Include="Win32\DropShadow.cs" />
     <Compile Include="Win32\IconUtil.cs" />
     <Compile Include="Win32\ShellContextMenu.cs" />
+    <Compile Include="Win32\ShellContextMenuSupport.cs" />
     <Compile Include="Win32\WindowUtil.cs" />
     <EmbeddedResource Include="EditDialog.cs.resx">
       <DependentUpon>EditDialog.cs</DependentUpon>

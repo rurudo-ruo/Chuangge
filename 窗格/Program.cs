@@ -31,8 +31,9 @@ namespace 窗格
                     using (var trayIcon = new TrayIconController())
                     {
                         var loadResult = FenceManager.Instance.LoadFences();
-                        if (Application.OpenForms.Count == 0)
-                            FenceManager.Instance.CreateFence(UiText.Get("First fence"));
+                        FenceWindowCoordinator.ShowFences(loadResult.Fences);
+                        if (loadResult.Fences.Count == 0)
+                            FenceWindowCoordinator.CreateFence(UiText.Get("First fence"));
 
                         var skippedPaths = loadResult.SkippedPaths
                             .Distinct(StringComparer.OrdinalIgnoreCase)

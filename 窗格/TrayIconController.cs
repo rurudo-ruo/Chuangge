@@ -37,7 +37,7 @@ namespace 窗格
 
         private static void NewFence_Click(object sender, EventArgs e)
         {
-            FenceManager.Instance.CreateFence(UiText.Get("New fence"));
+            FenceWindowCoordinator.CreateFence(UiText.Get("New fence"));
         }
 
         private static void AdvancedSettings_Click(object sender, EventArgs e)
