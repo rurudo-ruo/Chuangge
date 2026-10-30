@@ -50,11 +50,11 @@ proved behavior-neutral moves to Phase B rather than being forced.
 | Phase | Items | Done | Doing | Todo | Won't fix |
 |---|---|---|---|---|---|
 | A — no observable behavior change | 19 | 13 | 0 | 6 | 0 |
-| B — behavior fixes | 10 | 0 | 0 | 10 | 0 |
+| B — behavior fixes | 11 | 10 | 0 | 1 | 0 |
 | C — hardening and process | 8 | 0 | 0 | 8 | 0 |
 | D — already satisfied (verified) | 10 | 10 | 0 | 0 | 0 |
 | W — won't fix | 2 | 0 | 0 | 0 | 2 |
-| **Total** | **49** | **23** | **0** | **24** | **2** |
+| **Total** | **50** | **33** | **0** | **15** | **2** |
 
 ---
 
@@ -90,8 +90,8 @@ safe to land behind a build + smoke test and they de-risk Phase B (which edits t
 - **A2** intentionally produces **no backup file**, so the persisted file set under
   `%LOCALAPPDATA%\NoFences\<id>` is unchanged. A `.tmp` exists only for the duration of a save and
   is removed on failure. Last-known-good retention is a Phase C decision.
-- **A3** covers the `StringFormat` and the measurement only; per-item brushes/pens are still
-  allocated per frame and are tracked as **B10**.
+- **A3** covered the `StringFormat` and the measurement only; per-item brushes/pens were still
+  allocated per frame at the time and are now handled by **B10**.
 - **A4** keeps a full clear for DPI and settings changes, because item sizes, radii and fonts
   genuinely change there. DnD, delete and replace now evict just the affected paths.
 - **A6** freezes the localized "missing" suffix at construction. `Type` is immutable, so the
@@ -108,24 +108,34 @@ safe to land behind a build + smoke test and they de-risk Phase B (which edits t
 
 | ID | Item | Where | Effort | Status |
 |---|---|---|---|---|
-| B1 | Cache resolved entries (file existence) and refresh on activation/timer instead of per paint | [FenceWindow.cs:737–742](窗格/FenceWindow.cs#L737-L742), [FenceEntry.cs:26–33](窗格/Model/FenceEntry.cs#L26-L33) | M | Todo |
-| B2 | Throttle or composite the pointer glow so it stops repainting items | [FenceWindow.cs:560–564](窗格/FenceWindow.cs#L560-L564) | M | Todo |
-| B3 | Case-insensitive extension matching (fixes `.PNG` falling back to a shell icon) | [ThumbnailProvider.cs:51–54](窗格/Util/ThumbnailProvider.cs#L51-L54) | S | Todo |
-| B4 | Correct the legacy JSON fallback so `\t`, `\n`, `\b`, `\f`, `\r` paths are not silently mangled | [FenceManager.cs:21–23](窗格/Model/FenceManager.cs#L21-L23), [207–216](窗格/Model/FenceManager.cs#L207-L216) | M | Todo |
-| B5 | Harden cross-thread marshalling (check-then-`BeginInvoke` race can terminate the process) | [FenceWindow.cs:1227–1241](窗格/FenceWindow.cs#L1227-L1241), [1248–1259](窗格/FenceWindow.cs#L1248-L1259) | S | Todo |
-| B6 | Case-insensitive `ReplaceItem` lookup (currently ordinal and silently misses) | [FenceViewModel.cs:186–205](窗格/FenceViewModel.cs#L186-L205) | S | Todo |
-| B7 | Window-message correctness: `WM_NCCALCSIZE` return, `WM_NCMOUSELEAVE` removal, `SC_MAXIMIZE` value | [FenceWindow.cs:170–188](窗格/FenceWindow.cs#L170-L188) | S | Todo |
-| B8 | Bound the thumbnail cache (LRU) and dispose replaced icons | [ThumbnailProvider.cs:44–46](窗格/Util/ThumbnailProvider.cs#L44-L46), [155–206](窗格/Util/ThumbnailProvider.cs#L155-L206) | M | Todo |
-| B9 | Stop forcing a synchronous repaint on every resize/minify | [FenceWindow.cs:505–515](窗格/FenceWindow.cs#L505-L515), [636–645](窗格/FenceWindow.cs#L636-L645) | S | Todo |
-| B10 | Hoist per-item brushes/pens into theme-scoped fields | [FenceWindow.cs:824–856](窗格/FenceWindow.cs#L824-L856) | S | Todo |
+| B1 | Cache resolved entries; refresh on pointer entry and after content changes instead of per paint | [FenceWindow.cs:1048–1102](窗格/FenceWindow.cs#L1048-L1102), [FenceEntry.cs:26–33](窗格/Model/FenceEntry.cs#L26-L33) | M | Done |
+| B2 | Throttle the pointer glow and pin its draw position to the invalidated region | [FenceWindow.cs:1131–1141](窗格/FenceWindow.cs#L1131-L1141) | M | Done |
+| B3 | Case-insensitive extension matching (fixes `.PNG` falling back to a shell icon) | [ThumbnailProvider.cs:26–36](窗格/Util/ThumbnailProvider.cs#L26-L36) | S | Done |
+| B4 | Correct the legacy JSON fallback so `\t`, `\n`, `\b`, `\f`, `\r` paths are not silently mangled | [FenceManager.cs:204–246](窗格/Model/FenceManager.cs#L204-L246) | M | Done |
+| B5 | Harden cross-thread marshalling (check-then-`BeginInvoke` race could terminate the process) | [FenceWindow.cs:1396–1436](窗格/FenceWindow.cs#L1396-L1436) | S | Done |
+| B6 | Case-insensitive `ReplaceItem` lookup (was ordinal and silently missed) | [FenceViewModel.cs:186–190](窗格/FenceViewModel.cs#L186-L190) | S | Done |
+| B7 | Window-message correctness: `WM_NCCALCSIZE` return, `WM_NCMOUSELEAVE` removal, `SC_MAXIMIZE` mask | [FenceWindow.cs:201–219](窗格/FenceWindow.cs#L201-L219) | S | Done |
+| B8 | Bound the thumbnail cache (LRU) and drain replaced icons on the UI thread | [ThumbnailProvider.cs](窗格/Util/ThumbnailProvider.cs) | M | Done |
+| B9 | Stop forcing a synchronous repaint on every resize/minify | [FenceWindow.cs:544–554](窗格/FenceWindow.cs#L544-L554), [691–700](窗格/FenceWindow.cs#L691-L700) | S | Done |
+| B10 | Hoist per-item brushes/pens into theme-scoped fields | [FenceWindow.cs:871–900](窗格/FenceWindow.cs#L871-L900) | S | Done |
+| B11 | Composite fence content into an offscreen bitmap so glow-only paints blit instead of re-rendering items | [FenceWindow.cs](窗格/FenceWindow.cs) | M | Todo |
 
 ### Phase B acceptance notes
 
-- **B1** must preserve the current "missing item turns amber without reopening the fence"
-  behaviour; refresh on `WM_ACTIVATE` and on a 2–5 s timer, never inside `Paint`.
-- **B4** must be validated against a real legacy `fence.json` containing a path with `\t` and one
-  with `\n`; a wrong fallback silently points the fence at a nonexistent path.
-- **B5** is failure-path only but is user-visible as a crash, hence Phase B.
+- **B1** is implemented as a per-path entry cache, refreshed when the pointer enters the fence
+  (throttled to once per second) and after add/remove/replace. The plan's 2–5 s timer was dropped:
+  on an offline UNC share it would reintroduce a periodic UI-thread stall. A path that is not yet
+  cached still costs one probe on its first paint. File changes are picked up on the next entry.
+- **B2** is a 16 ms throttle that draws the halo only at a position that was just invalidated, so
+  the previous frame is always erased. Frame cost during a glow repaint still includes the items
+  under the halo; **B11** is the follow-up that removes that entirely.
+- **B4** retries with all backslashes doubled only when strict parsing fails or a parsed path
+  contains a control character. Mixed-escape legacy files remain best effort and are documented
+  as such.
+- **B8** keeps the retirement list (disposing an icon from a worker thread could race a paint) but
+  drains it on the UI thread from the thumbnail-loaded handler. Pending entries are never evicted.
+- **B11** needs pixel-level regression testing, which this session cannot run; it is therefore
+  not started.
 
 ---
 
@@ -220,6 +230,10 @@ Because the project has no automated tests, every phase closes on this manual pa
 7. Missing-item flow: delete a referenced file, reopen the fence, locate a replacement.
 8. Inspect `%LOCALAPPDATA%\NoFences\<id>`: only `__fence_metadata.xml` is present after a save
    (no `.tmp` left behind).
+9. Sweep the pointer across a fence continuously: the halo follows without leaving trails, and
+   dragging an item still repaints immediately.
+10. Delete a referenced file while the fence is open, leave and re-enter it: the item turns amber
+    (B1 refresh path). Add the file back and re-enter: it renders normally again.
 
 Phase A adds one extra check: **compare before/after screenshots** of a fence with a mixed set of
 items (image, exe, folder, missing) — the rendering must be pixel-identical.
@@ -234,6 +248,9 @@ items (image, exe, folder, missing) — the rendering must be pixel-identical.
 | 2026-10-31 | Phase A boundary = strictly identical observable behavior | Perf caches and glow throttling change staleness/smoothness, so they are deferred to Phase B. |
 | 2026-10-31 | Scope of the first sitting: plan + full Phase A batch, then stop for review | Keeps the reviewable diff focused on provably safe changes. |
 | 2026-10-31 | A14/A15 (file deletion) deferred | No compiler available; file/csproj removal cannot be verified by inspection. |
+| 2026-10-31 | B1 refreshes on pointer entry, not on a timer | A timer would block the UI thread on an offline share every interval; entry/refresh-on-change keeps the steady-state paint path free of I/O. |
+| 2026-10-31 | B2 throttles instead of compositing | Offscreen compositing needs pixel-level regression testing that this session cannot run; recorded as B11. |
+| 2026-10-31 | B8 keeps the retirement list but drains it on the UI thread | Preserves the original cross-thread safety while bounding retained icon handles. |
 
 ---
 
@@ -243,3 +260,4 @@ items (image, exe, folder, missing) — the rendering must be pixel-identical.
 |---|---|
 | 2026-10-31 | Plan created. |
 | 2026-10-31 | Phase A implemented (A1–A13). Build and smoke test still outstanding — see §9. |
+| 2026-10-31 | Phase B implemented (B1–B10). B11 added for offscreen compositing. Build and smoke test still outstanding — see §9. |

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Web.Script.Serialization;
 using System.Xml;
 using System.Xml.Serialization;
@@ -20,9 +19,6 @@ namespace 窗格.Model
         private const string BackupFileSuffix = "___fence_metadata";
         private const string TempFileSuffix = ".tmp";
         private static readonly XmlSerializer Serializer = new XmlSerializer(typeof(FenceInfo));
-        private static readonly Regex InvalidJsonEscape = new Regex(
-            @"(?<!\\)\\(?![""\\/bfnrtu])",
-            RegexOptions.Compiled);
 
         private readonly string basePath;
 
@@ -208,12 +204,45 @@ namespace 窗格.Model
         private static FenceInfo ReadJsonFence(string path, Guid expectedId)
         {
             var json = File.ReadAllText(path);
-            json = InvalidJsonEscape.Replace(json, @"\\");
-
             var serializer = new JavaScriptSerializer();
-            var fence = serializer.Deserialize<FenceInfo>(json);
+            FenceInfo fence = null;
+            try
+            {
+                fence = serializer.Deserialize<FenceInfo>(json);
+            }
+            catch (ArgumentException)
+            {
+                // Fall through to the legacy retry below: the file has unescaped backslashes.
+            }
+
+            if (fence == null || HasControlCharacters(fence.Files))
+            {
+                // The legacy writer escaped nothing, so every backslash in the file is literal.
+                fence = serializer.Deserialize<FenceInfo>(json.Replace(@"\", @"\\"));
+            }
+
             ValidateFence(fence, expectedId);
             return fence;
+        }
+
+        private static bool HasControlCharacters(IList<string> files)
+        {
+            if (files == null)
+                return false;
+
+            foreach (var file in files)
+            {
+                if (string.IsNullOrEmpty(file))
+                    continue;
+
+                foreach (var character in file)
+                {
+                    if (character < ' ')
+                        return true;
+                }
+            }
+
+            return false;
         }
 
         private static void ValidateFence(FenceInfo fence, Guid expectedId)

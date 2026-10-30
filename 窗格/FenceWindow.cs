@@ -23,6 +23,7 @@ namespace 窗格
         private const int logicalItemPadding = 12;
         private const float logicalIconFontSize = 9;
         private const int maximumCachedItemEffects = 128;
+        private const int minimumPointerGlowIntervalMilliseconds = 16;
 
         private readonly FenceViewModel viewModel;
         private FenceInfo fenceInfo => viewModel.Info;
@@ -36,6 +37,11 @@ namespace 窗格
             Trimming = StringTrimming.EllipsisCharacter
         };
 
+        private SolidBrush selectionBrush;
+        private Pen selectionBorderPen;
+        private SolidBrush itemNameBrush;
+        private SolidBrush missingNameBrush;
+
         private string selectedItem;
         private string hoveringItem;
         private bool isMinified;
@@ -48,6 +54,10 @@ namespace 窗格
         private int dragInsertionIndex = -1;
         private Point pointerPosition;
         private bool pointerInside;
+        private Point glowPosition;
+        private bool glowVisible;
+        private int lastGlowUpdateTicks;
+        private int lastEntryRefreshTicks;
         private bool removedFromStorage;
 
         private int scrollHeight;
@@ -103,6 +113,8 @@ namespace 窗格
 
         private readonly Dictionary<string, ItemRenderCache> itemRenderCache =
             new Dictionary<string, ItemRenderCache>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, FenceEntry> entryCache =
+            new Dictionary<string, FenceEntry>(StringComparer.OrdinalIgnoreCase);
         private long wheelDeltaRemainder;
         private long renderCacheAccessOrder;
         private Bitmap pointerGlowBitmap;
@@ -120,6 +132,19 @@ namespace 窗格
             iconFont = newIconFont;
             oldTitleFont?.Dispose();
             oldIconFont?.Dispose();
+        }
+
+        private void UpdateThemeBrushes()
+        {
+            selectionBrush?.Dispose();
+            selectionBorderPen?.Dispose();
+            itemNameBrush?.Dispose();
+            missingNameBrush?.Dispose();
+
+            selectionBrush = new SolidBrush(FluentTheme.AccentOverlay(FluentTheme.IsDark ? 64 : 42));
+            selectionBorderPen = new Pen(Color.FromArgb(210, FluentTheme.Accent));
+            itemNameBrush = new SolidBrush(FluentTheme.Text);
+            missingNameBrush = new SolidBrush(Color.FromArgb(255, 224, 176));
         }
 
         public FenceWindow(FenceInfo fenceInfo)
@@ -145,6 +170,7 @@ namespace 窗格
             thumbnailProvider.IconThumbnailLoaded += ThumbnailProvider_IconThumbnailLoaded;
 
             ReloadFonts();
+            UpdateThemeBrushes();
 
             AllowDrop = true;
 
@@ -177,22 +203,17 @@ namespace 窗格
         {
             //Console.WriteLine(m.Msg.ToString("X4"));
 
-            // Remove border
-            if (m.Msg == 0x0083)
+            // Remove border. Only the "client area valid" pass is overridden. When wParam is
+            // zero the client rectangle still has to be computed, so let the base class do it.
+            if (m.Msg == WM_NCCALCSIZE && m.WParam != IntPtr.Zero)
             {
                 m.Result = IntPtr.Zero;
                 return;
             }
 
-            // Mouse leave
-            var myrect = new Rectangle(Location, Size);
-            if (m.Msg == 0x02a2 && !myrect.IntersectsWith(new Rectangle(MousePosition, new Size(1, 1))))
-            {
-                Minify();
-            }
-
-            // Prevent maximize
-            if ((m.Msg == WM_SYSCOMMAND) && m.WParam.ToInt32() == 0xF032)
+            // Prevent maximize. The low four bits of wParam carry system flags, so mask them:
+            // this covers both SC_MAXIMIZE (0xF030) and the 0xF032 variant some themes send.
+            if (m.Msg == WM_SYSCOMMAND && (m.WParam.ToInt32() & 0xFFF0) == SC_MAXIMIZE)
             {
                 m.Result = IntPtr.Zero;
                 return;
@@ -230,7 +251,7 @@ namespace 窗格
                 if ((int)m.Result == HTCLIENT && pt.Y < titleHeight)     // drag the form
                 {
                     m.Result = (IntPtr)HTCAPTION;
-                    FenceWindow_MouseEnter(null, null);
+                    EnterFence();
                 }
 
                 var resizeBorder = LogicalToDeviceUnits(10);
@@ -289,6 +310,10 @@ namespace 窗格
             titleFont?.Dispose();
             iconFont?.Dispose();
             itemTextFormat.Dispose();
+            selectionBrush?.Dispose();
+            selectionBorderPen?.Dispose();
+            itemNameBrush?.Dispose();
+            missingNameBrush?.Dispose();
             shellContextMenu.Dispose();
             base.OnFormClosed(e);
         }
@@ -360,7 +385,7 @@ namespace 窗格
                 return;
             }
 
-            RemoveRenderCacheEntry(removedItem);
+            ForgetEntry(removedItem);
             hoveringItem = null;
             Refresh();
         }
@@ -441,8 +466,7 @@ namespace 窗格
                 try
                 {
                     viewModel.AddExistingItems(dropped);
-                    foreach (var path in dropped)
-                        RemoveRenderCacheEntry(path);
+                    RefreshEntryCache();
                 }
                 catch (Exception ex) when (IsFenceSaveError(ex))
                 {
@@ -526,12 +550,11 @@ namespace 窗格
                 Save();
             });
 
-            Refresh();
+            Invalidate();
         }
 
         private void FenceWindow_MouseMove(object sender, MouseEventArgs e)
         {
-            var previousPointerPosition = pointerPosition;
             pointerPosition = e.Location;
             pointerInside = true;
             var hoveredItemIndex = GetItemIndexAt(e.Location);
@@ -573,7 +596,7 @@ namespace 窗格
             }
 
             if (GlobalFenceSettings.GlowEffectsEnabled && GlobalFenceSettings.PointerGlowIntensity > 0)
-                InvalidatePointerGlow(previousPointerPosition, pointerPosition);
+                UpdatePointerGlow(pointerPosition);
         }
 
         private void FenceWindow_MouseDown(object sender, MouseEventArgs e)
@@ -623,6 +646,31 @@ namespace 窗格
 
         private void FenceWindow_MouseEnter(object sender, EventArgs e)
         {
+            EnterFence();
+            if (GlobalFenceSettings.GlowEffectsEnabled && GlobalFenceSettings.PointerGlowIntensity > 0)
+            {
+                glowPosition = pointerPosition;
+                glowVisible = true;
+                lastGlowUpdateTicks = Environment.TickCount;
+                InvalidatePointerGlow(glowPosition);
+            }
+            else
+            {
+                glowVisible = false;
+            }
+
+            // Bound hover thrash: re-probing a fence that points at a slow share must not
+            // happen on every entry.
+            var now = Environment.TickCount;
+            if (unchecked(now - lastEntryRefreshTicks) >= 1000)
+            {
+                lastEntryRefreshTicks = now;
+                RefreshEntryCache();
+            }
+        }
+
+        private void EnterFence()
+        {
             pointerPosition = PointToClient(MousePosition);
             pointerInside = true;
             if (minifyToolStripMenuItem.Checked && isMinified)
@@ -634,14 +682,17 @@ namespace 窗格
 
         private void FenceWindow_MouseLeave(object sender, EventArgs e)
         {
-            var previousPointerPosition = pointerPosition;
             var previousSelectedItem = selectedItem;
             pointerInside = false;
             if (!isDraggingThumbnail)
                 Minify();
             selectedItem = null;
             hoveringItem = null;
-            InvalidatePointerGlow(previousPointerPosition);
+            if (glowVisible)
+            {
+                InvalidatePointerGlow(glowPosition);
+                glowVisible = false;
+            }
             InvalidateItem(previousSelectedItem);
         }
 
@@ -652,7 +703,7 @@ namespace 窗格
                 isMinified = true;
                 prevHeight = Height;
                 Height = titleHeight;
-                Refresh();
+                Invalidate();
             }
         }
 
@@ -748,7 +799,7 @@ namespace 窗格
             for (var i = firstVisibleIndex; i <= lastVisibleIndex; i++)
             {
                 var bounds = layout.GetItemBounds(i);
-                var entry = FenceEntry.FromPath(fenceInfo.Files[i]);
+                var entry = GetEntry(fenceInfo.Files[i]);
                 RenderEntry(graphics, entry, bounds.Left, bounds.Top, itemWidth, textHeight, iconSize);
             }
 
@@ -828,13 +879,11 @@ namespace 窗格
             var isSelected = string.Equals(selectedItem, entry.Path, StringComparison.OrdinalIgnoreCase);
             if (isSelected)
             {
-                using (var cardBrush = new SolidBrush(FluentTheme.AccentOverlay(FluentTheme.IsDark ? 64 : 42)))
                 using (var cardPath = CreateRoundedRectangle(cardRect, ContentToDeviceUnits(7)))
-                    g.FillPath(cardBrush, cardPath);
+                    g.FillPath(selectionBrush, cardPath);
 
-                using (var borderPen = new Pen(Color.FromArgb(210, FluentTheme.Accent)))
                 using (var cardPath = CreateRoundedRectangle(cardRect, ContentToDeviceUnits(7)))
-                    g.DrawPath(borderPen, cardPath);
+                    g.DrawPath(selectionBorderPen, cardPath);
             }
 
             var iconRect = new Rectangle(x + (itemWidth - iconSize) / 2, iconY, iconSize, iconSize);
@@ -854,10 +903,9 @@ namespace 窗格
                 shadowOffset, shadowOpacity, itemTextFormat);
             g.DrawImageUnscaled(blurredText,
                 (int)textPosition.X - shadowRadius, (int)textPosition.Y - shadowRadius);
-            using (var nameBrush = new SolidBrush(entry.Type == EntryType.Missing
-                ? Color.FromArgb(255, 224, 176)
-                : FluentTheme.Text))
-                g.DrawString(name, iconFont, nameBrush, new RectangleF(textPosition, textMaxSize), itemTextFormat);
+            g.DrawString(name, iconFont,
+                entry.Type == EntryType.Missing ? missingNameBrush : itemNameBrush,
+                new RectangleF(textPosition, textMaxSize), itemTextFormat);
         }
 
         private SizeF GetItemTextSize(Graphics graphics, FenceEntry entry, string text, SizeF maxSize)
@@ -1005,6 +1053,62 @@ namespace 窗格
             cache.Dispose();
         }
 
+        private FenceEntry GetEntry(string path)
+        {
+            FenceEntry entry;
+            if (!entryCache.TryGetValue(path, out entry))
+            {
+                entry = FenceEntry.FromPath(path);
+                entryCache[path] = entry;
+            }
+
+            return entry;
+        }
+
+        private void ForgetEntry(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return;
+
+            entryCache.Remove(path);
+            RemoveRenderCacheEntry(path);
+        }
+
+        /// <summary>
+        /// Re-probes the items of this fence off the paint path. Called when the pointer enters
+        /// the fence and after content-changing operations.
+        /// </summary>
+        private void RefreshEntryCache()
+        {
+            if (fenceInfo.Files.Count == 0)
+            {
+                entryCache.Clear();
+                return;
+            }
+
+            var resolved = new Dictionary<string, FenceEntry>(StringComparer.OrdinalIgnoreCase);
+            foreach (var path in fenceInfo.Files)
+                resolved[path] = FenceEntry.FromPath(path);
+
+            var changed = false;
+            foreach (var pair in resolved)
+            {
+                FenceEntry existing;
+                if (!entryCache.TryGetValue(pair.Key, out existing) || existing.Type != pair.Value.Type)
+                {
+                    RemoveRenderCacheEntry(pair.Key);
+                    changed = true;
+                }
+            }
+
+            entryCache.Clear();
+            foreach (var pair in resolved)
+                entryCache[pair.Key] = pair.Value;
+
+            if (changed)
+                Invalidate();
+        }
+
         private void InvalidateItem(string path)
         {
             if (string.IsNullOrEmpty(path))
@@ -1030,6 +1134,18 @@ namespace 窗格
             }
 
             InvalidateItem(path);
+        }
+
+        private void UpdatePointerGlow(Point position)
+        {
+            var now = Environment.TickCount;
+            if (glowVisible && unchecked(now - lastGlowUpdateTicks) < minimumPointerGlowIntervalMilliseconds)
+                return;
+
+            lastGlowUpdateTicks = now;
+            InvalidatePointerGlow(glowVisible ? glowPosition : position, position);
+            glowPosition = position;
+            glowVisible = true;
         }
 
         private void InvalidatePointerGlow(Point position)
@@ -1099,9 +1215,11 @@ namespace 窗格
 
         private void DrawPointerGlow(Graphics graphics)
         {
-            if (pointerGlowBitmap != null)
-                graphics.DrawImageUnscaled(pointerGlowBitmap,
-                    pointerPosition.X - pointerGlowRadius, pointerPosition.Y - pointerGlowRadius);
+            if (!glowVisible || pointerGlowBitmap == null)
+                return;
+
+            graphics.DrawImageUnscaled(pointerGlowBitmap,
+                glowPosition.X - pointerGlowRadius, glowPosition.Y - pointerGlowRadius);
         }
 
         private void renameToolStripMenuItem_Click(object sender, EventArgs e)
@@ -1284,11 +1402,19 @@ namespace 窗格
 
             if (InvokeRequired)
             {
-                BeginInvoke(new EventHandler<ThumbnailProvider.ThumbnailLoadedEventArgs>(
-                    ThumbnailProvider_IconThumbnailLoaded), sender, e);
+                try
+                {
+                    BeginInvoke(new EventHandler<ThumbnailProvider.ThumbnailLoadedEventArgs>(
+                        ThumbnailProvider_IconThumbnailLoaded), sender, e);
+                }
+                catch (InvalidOperationException)
+                {
+                    // The window was destroyed between the checks above and the marshal.
+                }
                 return;
             }
 
+            thumbnailProvider.ReleaseRetiredIcons();
             InvalidateIconGlow(e.Path);
         }
 
@@ -1306,7 +1432,14 @@ namespace 窗格
             {
                 if (!IsHandleCreated)
                     return;
-                BeginInvoke(new EventHandler(GlobalFenceSettings_Changed), sender, e);
+                try
+                {
+                    BeginInvoke(new EventHandler(GlobalFenceSettings_Changed), sender, e);
+                }
+                catch (InvalidOperationException)
+                {
+                    // The window was destroyed between the checks above and the marshal.
+                }
                 return;
             }
 
@@ -1323,6 +1456,7 @@ namespace 窗格
             ClearRenderCache();
             UpdatePointerGlowBitmap();
             ReloadFonts();
+            UpdateThemeBrushes();
 
             if (wasMinified && !GlobalFenceSettings.HideTitleArea)
                 Height = titleHeight;
@@ -1403,8 +1537,8 @@ namespace 窗格
 
             selectedItem = replacementPath;
             hoveringItem = replacementPath;
-            RemoveRenderCacheEntry(previousPath);
-            RemoveRenderCacheEntry(replacementPath);
+            ForgetEntry(previousPath);
+            RefreshEntryCache();
             Invalidate();
         }
 

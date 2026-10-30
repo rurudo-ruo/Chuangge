@@ -185,7 +185,8 @@ namespace 窗格
 
         public bool ReplaceItem(string currentPath, string replacementPath)
         {
-            var index = Info.Files.IndexOf(currentPath);
+            var index = Info.Files.FindIndex(existing =>
+                string.Equals(existing, currentPath, StringComparison.OrdinalIgnoreCase));
             if (index < 0)
                 return false;
 

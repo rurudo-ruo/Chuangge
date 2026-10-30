@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Runtime.InteropServices;
 
 namespace 窗格.Win32
@@ -17,6 +17,7 @@ namespace 窗格.Win32
         public const int HTBOTTOMLEFT = 16;
         public const int HTBOTTOMRIGHT = 17;
 
+        public const int WM_NCCALCSIZE = 0x0083;
         public const int WM_SYSCOMMAND = 274;
         public const int SC_MAXIMIZE = 0xF030;
         public const int SC_MINIMIZE = 0xF020;
