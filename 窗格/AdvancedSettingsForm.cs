@@ -140,7 +140,7 @@ namespace 窗格
             var themeHeading = new Label
             {
                 AutoSize = true,
-                Font = new Font(FluentTheme.BodyFont, FontStyle.Bold),
+                Font = FluentTheme.BoldBodyFont,
                 Margin = new Padding(0, 0, 0, 10),
                 Text = UiText.Get("Theme")
             };
@@ -206,7 +206,7 @@ namespace 窗格
             var overlayHeading = new Label
             {
                 AutoSize = true,
-                Font = new Font(FluentTheme.BodyFont, FontStyle.Bold),
+                Font = FluentTheme.BoldBodyFont,
                 Margin = new Padding(0, 16, 0, 8),
                 Text = UiText.Get("Overlay intensity")
             };
@@ -281,7 +281,7 @@ namespace 窗格
             var glowHeading = new Label
             {
                 AutoSize = true,
-                Font = new Font(FluentTheme.BodyFont, FontStyle.Bold),
+                Font = FluentTheme.BoldBodyFont,
                 Margin = new Padding(0, 0, 0, 10),
                 Text = UiText.Get("Glow effects")
             };

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -18,6 +18,8 @@ namespace 窗格.Model
         private const string JsonFenceFileName = "fence.json";
         private const string BackupDirectoryPattern = "Backup_XML_*";
         private const string BackupFileSuffix = "___fence_metadata";
+        private const string TempFileSuffix = ".tmp";
+        private static readonly XmlSerializer Serializer = new XmlSerializer(typeof(FenceInfo));
         private static readonly Regex InvalidJsonEscape = new Regex(
             @"(?<!\\)\\(?![""\\/bfnrtu])",
             RegexOptions.Compiled);
@@ -193,11 +195,10 @@ namespace 窗格.Model
 
         private static FenceInfo ReadXmlFence(string path, Guid expectedId)
         {
-            var serializer = new XmlSerializer(typeof(FenceInfo));
             FenceInfo fence;
             using (var reader = new StreamReader(path))
             {
-                fence = serializer.Deserialize(reader) as FenceInfo;
+                fence = Serializer.Deserialize(reader) as FenceInfo;
             }
 
             ValidateFence(fence, expectedId);
@@ -272,9 +273,40 @@ namespace 窗格.Model
             EnsureDirectoryExists(path);
 
             var metaFile = Path.Combine(path, MetaFileName);
-            var serializer = new XmlSerializer(typeof(FenceInfo));
-            using (var writer = new StreamWriter(metaFile))
-                serializer.Serialize(writer, fenceInfo);
+            var tempFile = metaFile + TempFileSuffix;
+            try
+            {
+                using (var writer = new StreamWriter(tempFile))
+                    Serializer.Serialize(writer, fenceInfo);
+
+                // Swap in one step so an interrupted save cannot truncate the only copy.
+                if (File.Exists(metaFile))
+                    File.Replace(tempFile, metaFile, null);
+                else
+                    File.Move(tempFile, metaFile);
+            }
+            catch
+            {
+                TryDeleteFile(tempFile);
+                throw;
+            }
+        }
+
+        private static void TryDeleteFile(string path)
+        {
+            try
+            {
+                if (File.Exists(path))
+                    File.Delete(path);
+            }
+            catch (IOException)
+            {
+                // Best effort only: the original metadata file is still intact.
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Best effort only: the original metadata file is still intact.
+            }
         }
 
         private void EnsureDirectoryExists(string dir)

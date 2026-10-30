@@ -29,6 +29,12 @@ namespace 窗格
 
         private Font titleFont;
         private Font iconFont;
+        private readonly StringFormat itemTextFormat = new StringFormat
+        {
+            Alignment = StringAlignment.Center,
+            LineAlignment = StringAlignment.Near,
+            Trimming = StringTrimming.EllipsisCharacter
+        };
 
         private string selectedItem;
         private string hoveringItem;
@@ -78,6 +84,11 @@ namespace 窗格
             public int TextWidth;
             public int TextHeight;
             public float FontSize;
+            public SizeF MeasuredTextSize;
+            public string MeasuredText;
+            public float MeasuredFontSize;
+            public float MeasuredMaxWidth;
+            public float MeasuredMaxHeight;
             public int ShadowRadius;
             public int ShadowOffset;
             public int ShadowOpacity;
@@ -277,6 +288,8 @@ namespace 窗格
             pointerGlowBitmap = null;
             titleFont?.Dispose();
             iconFont?.Dispose();
+            itemTextFormat.Dispose();
+            shellContextMenu.Dispose();
             base.OnFormClosed(e);
         }
 
@@ -336,6 +349,7 @@ namespace 窗格
             if (itemIndex < 0)
                 return;
 
+            var removedItem = hoveringItem;
             try
             {
                 viewModel.RemoveItemAt(itemIndex);
@@ -346,7 +360,7 @@ namespace 窗格
                 return;
             }
 
-            ClearRenderCache();
+            RemoveRenderCacheEntry(removedItem);
             hoveringItem = null;
             Refresh();
         }
@@ -427,7 +441,8 @@ namespace 窗格
                 try
                 {
                     viewModel.AddExistingItems(dropped);
-                    ClearRenderCache();
+                    foreach (var path in dropped)
+                        RemoveRenderCacheEntry(path);
                 }
                 catch (Exception ex) when (IsFenceSaveError(ex))
                 {
@@ -467,10 +482,10 @@ namespace 窗格
                         return;
                     selectedItem = dragData.Path;
                     source.selectedItem = null;
-                    source.ClearRenderCache();
+                    source.RemoveRenderCacheEntry(dragData.Path);
                     source.Invalidate();
                 }
-                ClearRenderCache();
+                RemoveRenderCacheEntry(dragData.Path);
             }
             catch (Exception ex) when (IsFenceSaveError(ex))
             {
@@ -558,10 +573,7 @@ namespace 窗格
             }
 
             if (GlobalFenceSettings.GlowEffectsEnabled && GlobalFenceSettings.PointerGlowIntensity > 0)
-            {
-                InvalidatePointerGlow(previousPointerPosition);
-                InvalidatePointerGlow(pointerPosition);
-            }
+                InvalidatePointerGlow(previousPointerPosition, pointerPosition);
         }
 
         private void FenceWindow_MouseDown(object sender, MouseEventArgs e)
@@ -687,7 +699,6 @@ namespace 窗格
         private void FenceWindow_Paint(object sender, PaintEventArgs e)
         {
             var graphics = e.Graphics;
-            graphics.SetClip(ClientRectangle, CombineMode.Intersect);
             graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
             graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             var backgroundAlpha = GlobalFenceSettings.GetOverlayOpacity(92, 174);
@@ -742,7 +753,7 @@ namespace 窗格
             }
 
             if (dragInsertionIndex >= 0)
-                DrawDragInsertionMarker(graphics);
+                DrawDragInsertionMarker(graphics, layout);
 
             scrollHeight = layout.GetContentOverflow(fenceInfo.Files.Count, ClientRectangle.Height - titleHeight);
 
@@ -776,15 +787,15 @@ namespace 窗格
 
         }
 
-        private void DrawDragInsertionMarker(Graphics graphics)
+        private void DrawDragInsertionMarker(Graphics graphics, FenceLayout layout)
         {
             if (fenceInfo.Files.Count == 0)
                 return;
 
             var beforeItem = dragInsertionIndex < fenceInfo.Files.Count;
             var markerTarget = beforeItem
-                ? GetItemBounds(dragInsertionIndex)
-                : GetItemBounds(fenceInfo.Files.Count - 1);
+                ? layout.GetItemBounds(dragInsertionIndex)
+                : layout.GetItemBounds(fenceInfo.Files.Count - 1);
             var x = beforeItem
                 ? markerTarget.Left - ContentToDeviceUnits(3)
                 : markerTarget.Right + ContentToDeviceUnits(3);
@@ -802,59 +813,69 @@ namespace 窗格
             var name = entry.Name;
 
             var textMaxSize = new SizeF(itemWidth, textHeight);
+            var textSize = GetItemTextSize(g, entry, name, textMaxSize);
 
-            using (var stringFormat = new StringFormat
+            var inset = ContentToDeviceUnits(4);
+            var itemHeight = iconSize + ContentToDeviceUnits(logicalItemPadding) + textHeight;
+            var cardRect = new Rectangle(x - inset, y,
+                itemWidth + inset * 2, itemHeight);
+            var iconTextGap = ContentToDeviceUnits(5);
+            var contentHeight = iconSize + iconTextGap + (int)textSize.Height;
+            var contentOffset = Math.Max(0, (itemHeight - contentHeight) / 2);
+            var iconY = y + contentOffset;
+            var textPosition = new PointF(x, iconY + iconSize + iconTextGap);
+
+            var isSelected = string.Equals(selectedItem, entry.Path, StringComparison.OrdinalIgnoreCase);
+            if (isSelected)
             {
-                Alignment = StringAlignment.Center,
-                LineAlignment = StringAlignment.Near,
-                Trimming = StringTrimming.EllipsisCharacter
-            })
-            {
-                var textSize = g.MeasureString(name, iconFont, textMaxSize, stringFormat);
-                var inset = ContentToDeviceUnits(4);
-                var itemHeight = iconSize + ContentToDeviceUnits(logicalItemPadding) + textHeight;
-                var cardRect = new Rectangle(x - inset, y,
-                    itemWidth + inset * 2, itemHeight);
-                var iconTextGap = ContentToDeviceUnits(5);
-                var contentHeight = iconSize + iconTextGap + (int)textSize.Height;
-                var contentOffset = Math.Max(0, (itemHeight - contentHeight) / 2);
-                var iconY = y + contentOffset;
-                var textPosition = new PointF(x, iconY + iconSize + iconTextGap);
+                using (var cardBrush = new SolidBrush(FluentTheme.AccentOverlay(FluentTheme.IsDark ? 64 : 42)))
+                using (var cardPath = CreateRoundedRectangle(cardRect, ContentToDeviceUnits(7)))
+                    g.FillPath(cardBrush, cardPath);
 
-                var isSelected = string.Equals(selectedItem, entry.Path, StringComparison.OrdinalIgnoreCase);
-                if (isSelected)
-                {
-                    using (var cardBrush = new SolidBrush(FluentTheme.AccentOverlay(FluentTheme.IsDark ? 64 : 42)))
-                    using (var cardPath = CreateRoundedRectangle(cardRect, ContentToDeviceUnits(7)))
-                        g.FillPath(cardBrush, cardPath);
-
-                    using (var borderPen = new Pen(Color.FromArgb(210, FluentTheme.Accent)))
-                    using (var cardPath = CreateRoundedRectangle(cardRect, ContentToDeviceUnits(7)))
-                        g.DrawPath(borderPen, cardPath);
-                }
-
-                var iconRect = new Rectangle(x + (itemWidth - iconSize) / 2, iconY, iconSize, iconSize);
-                if (GlobalFenceSettings.GlowEffectsEnabled && GlobalFenceSettings.IconGlowIntensity > 0)
-                {
-                    var glowRadius = ContentToDeviceUnits(GlobalFenceSettings.IconGlowRadius);
-                    var glowOpacity = (int)Math.Round(GlobalFenceSettings.IconGlowIntensity * 255.0 / 100);
-                    var iconGlow = GetIconGlow(entry, icon, iconSize, glowRadius, glowOpacity);
-                    g.DrawImageUnscaled(iconGlow, iconRect.X - glowRadius, iconRect.Y - glowRadius);
-                }
-                g.DrawIcon(icon, iconRect);
-
-                var shadowRadius = ContentToDeviceUnits(3);
-                var shadowOffset = ContentToDeviceUnits(1);
-                var shadowOpacity = FluentTheme.IsDark ? 82 : 58;
-                var blurredText = GetTextShadow(entry, name, textMaxSize, shadowRadius,
-                    shadowOffset, shadowOpacity, stringFormat);
-                g.DrawImageUnscaled(blurredText,
-                    (int)textPosition.X - shadowRadius, (int)textPosition.Y - shadowRadius);
-                using (var nameBrush = new SolidBrush(entry.Type == EntryType.Missing
-                    ? Color.FromArgb(255, 224, 176)
-                    : FluentTheme.Text))
-                    g.DrawString(name, iconFont, nameBrush, new RectangleF(textPosition, textMaxSize), stringFormat);
+                using (var borderPen = new Pen(Color.FromArgb(210, FluentTheme.Accent)))
+                using (var cardPath = CreateRoundedRectangle(cardRect, ContentToDeviceUnits(7)))
+                    g.DrawPath(borderPen, cardPath);
             }
+
+            var iconRect = new Rectangle(x + (itemWidth - iconSize) / 2, iconY, iconSize, iconSize);
+            if (GlobalFenceSettings.GlowEffectsEnabled && GlobalFenceSettings.IconGlowIntensity > 0)
+            {
+                var glowRadius = ContentToDeviceUnits(GlobalFenceSettings.IconGlowRadius);
+                var glowOpacity = (int)Math.Round(GlobalFenceSettings.IconGlowIntensity * 255.0 / 100);
+                var iconGlow = GetIconGlow(entry, icon, iconSize, glowRadius, glowOpacity);
+                g.DrawImageUnscaled(iconGlow, iconRect.X - glowRadius, iconRect.Y - glowRadius);
+            }
+            g.DrawIcon(icon, iconRect);
+
+            var shadowRadius = ContentToDeviceUnits(3);
+            var shadowOffset = ContentToDeviceUnits(1);
+            var shadowOpacity = FluentTheme.IsDark ? 82 : 58;
+            var blurredText = GetTextShadow(entry, name, textMaxSize, shadowRadius,
+                shadowOffset, shadowOpacity, itemTextFormat);
+            g.DrawImageUnscaled(blurredText,
+                (int)textPosition.X - shadowRadius, (int)textPosition.Y - shadowRadius);
+            using (var nameBrush = new SolidBrush(entry.Type == EntryType.Missing
+                ? Color.FromArgb(255, 224, 176)
+                : FluentTheme.Text))
+                g.DrawString(name, iconFont, nameBrush, new RectangleF(textPosition, textMaxSize), itemTextFormat);
+        }
+
+        private SizeF GetItemTextSize(Graphics graphics, FenceEntry entry, string text, SizeF maxSize)
+        {
+            var cache = GetRenderCache(entry.Path);
+            if (string.Equals(cache.MeasuredText, text, StringComparison.Ordinal)
+                && cache.MeasuredFontSize == iconFont.Size
+                && cache.MeasuredMaxWidth == maxSize.Width
+                && cache.MeasuredMaxHeight == maxSize.Height)
+                return cache.MeasuredTextSize;
+
+            var textSize = graphics.MeasureString(text, iconFont, maxSize, itemTextFormat);
+            cache.MeasuredTextSize = textSize;
+            cache.MeasuredText = text;
+            cache.MeasuredFontSize = iconFont.Size;
+            cache.MeasuredMaxWidth = maxSize.Width;
+            cache.MeasuredMaxHeight = maxSize.Height;
+            return textSize;
         }
 
         private static GraphicsPath CreateRoundedRectangle(Rectangle bounds, int radius)
@@ -971,6 +992,19 @@ namespace 窗格
             itemRenderCache.Clear();
         }
 
+        private void RemoveRenderCacheEntry(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return;
+
+            ItemRenderCache cache;
+            if (!itemRenderCache.TryGetValue(path, out cache))
+                return;
+
+            itemRenderCache.Remove(path);
+            cache.Dispose();
+        }
+
         private void InvalidateItem(string path)
         {
             if (string.IsNullOrEmpty(path))
@@ -1005,6 +1039,24 @@ namespace 窗格
                 : LogicalToDeviceUnits(GlobalFenceSettings.PointerGlowRadius);
             var bounds = Rectangle.Intersect(ClientRectangle,
                 new Rectangle(position.X - radius, position.Y - radius, radius * 2, radius * 2));
+            if (!bounds.IsEmpty)
+                Invalidate(bounds);
+        }
+
+        private void InvalidatePointerGlow(Point previousPosition, Point currentPosition)
+        {
+            var radius = pointerGlowRadius > 0
+                ? pointerGlowRadius
+                : LogicalToDeviceUnits(GlobalFenceSettings.PointerGlowRadius);
+            var previousBounds = Rectangle.Intersect(ClientRectangle,
+                new Rectangle(previousPosition.X - radius, previousPosition.Y - radius, radius * 2, radius * 2));
+            var currentBounds = Rectangle.Intersect(ClientRectangle,
+                new Rectangle(currentPosition.X - radius, currentPosition.Y - radius, radius * 2, radius * 2));
+            var bounds = previousBounds.IsEmpty
+                ? currentBounds
+                : currentBounds.IsEmpty
+                    ? previousBounds
+                    : Rectangle.Union(previousBounds, currentBounds);
             if (!bounds.IsEmpty)
                 Invalidate(bounds);
         }
@@ -1322,6 +1374,8 @@ namespace 窗格
 
         private void ReplaceMissingItem(string replacementPath)
         {
+            var previousPath = hoveringItem;
+
             if (!ItemExists(replacementPath))
             {
                 MessageBox.Show(this, UiText.Get("The selected file or folder no longer exists."), UiText.Get("Cannot update fence item"),
@@ -1349,7 +1403,8 @@ namespace 窗格
 
             selectedItem = replacementPath;
             hoveringItem = replacementPath;
-            ClearRenderCache();
+            RemoveRenderCacheEntry(previousPath);
+            RemoveRenderCacheEntry(replacementPath);
             Invalidate();
         }
 

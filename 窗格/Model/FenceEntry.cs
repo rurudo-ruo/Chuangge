@@ -1,4 +1,4 @@
-﻿using System.Drawing;
+using System.Drawing;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using System;
@@ -14,13 +14,14 @@ namespace 窗格.Model
 
         public EntryType Type { get; }
 
-        public string Name => System.IO.Path.GetFileNameWithoutExtension(Path)
-            + (Type == EntryType.Missing ? UiText.Get("MissingItemSuffix") : string.Empty);
+        public string Name { get; }
 
         private FenceEntry(string path, EntryType type)
         {
             Path = path;
             Type = type;
+            Name = System.IO.Path.GetFileNameWithoutExtension(path)
+                + (type == EntryType.Missing ? UiText.Get("MissingItemSuffix") : string.Empty);
         }
 
         public static FenceEntry FromPath(string path)

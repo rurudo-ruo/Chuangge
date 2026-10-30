@@ -20,6 +20,7 @@ namespace 窗格
         private static readonly Color DarkBorder = Color.FromArgb(80, 80, 80);
         private static Color accent = Color.FromArgb(0, 120, 212);
         public static readonly Font BodyFont = new Font("Segoe UI", 9f, FontStyle.Regular);
+        public static readonly Font BoldBodyFont = new Font(BodyFont, FontStyle.Bold);
         public static readonly Font HeadingFont = new Font("Segoe UI", 16f, FontStyle.Bold);
 
         public static bool IsDark { get; private set; }

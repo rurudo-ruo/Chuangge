@@ -31,21 +31,38 @@ namespace 窗格.Win32
     ///    files[0] = new FileInfo(@"c:\windows\notepad.exe");
     ///    scm.ShowContextMenu(this.Handle, files, Cursor.Position);
     /// </example>
-    public class ShellContextMenu : NativeWindow
+    public class ShellContextMenu : NativeWindow, IDisposable
     {
         #region Constructor
         /// <summary>Default constructor</summary>
         public ShellContextMenu()
         {
             this.CreateHandle(new CreateParams());
+            handleCreated = true;
         }
         #endregion
 
-        #region Destructor
+        #region Disposal
         /// <summary>Ensure all resources get released</summary>
-        ~ShellContextMenu()
+        public void Dispose()
+        {
+            if (disposed)
+                return;
+
+            disposed = true;
+            ReleaseAll();
+            if (handleCreated)
+            {
+                handleCreated = false;
+                DestroyHandle();
+            }
+        }
+
+        protected override void OnHandleDestroyed(EventArgs e)
         {
             ReleaseAll();
+            handleCreated = false;
+            base.OnHandleDestroyed(e);
         }
         #endregion
 
@@ -417,10 +434,6 @@ namespace 窗格.Win32
                 DestroyMenu(pMenu);
                 pMenu = IntPtr.Zero;
             }
-            catch
-            {
-                throw;
-            }
             finally
             {
                 if (pMenu != IntPtr.Zero)
@@ -500,8 +513,11 @@ namespace 窗格.Win32
                 Marshal.QueryInterface(iContextMenuPtr, ref IID_IContextMenu2, out iContextMenuPtr2);
                 Marshal.QueryInterface(iContextMenuPtr, ref IID_IContextMenu3, out iContextMenuPtr3);
 
-                _oContextMenu2 = (IContextMenu2)Marshal.GetTypedObjectForIUnknown(iContextMenuPtr2, typeof(IContextMenu2));
-                _oContextMenu3 = (IContextMenu3)Marshal.GetTypedObjectForIUnknown(iContextMenuPtr3, typeof(IContextMenu3));
+                if (iContextMenuPtr2 != IntPtr.Zero)
+                    _oContextMenu2 = (IContextMenu2)Marshal.GetTypedObjectForIUnknown(iContextMenuPtr2, typeof(IContextMenu2));
+
+                if (iContextMenuPtr3 != IntPtr.Zero)
+                    _oContextMenu3 = (IContextMenu3)Marshal.GetTypedObjectForIUnknown(iContextMenuPtr3, typeof(IContextMenu3));
 
                 uint nSelected = TrackPopupMenuEx(
                     pMenu,
@@ -518,10 +534,6 @@ namespace 窗格.Win32
                 {
                     InvokeCommand(_oContextMenu, nSelected, _strParentFolder, pointScreen);
                 }
-            }
-            catch
-            {
-                throw;
             }
             finally
             {
@@ -553,6 +565,8 @@ namespace 窗格.Win32
         private IShellFolder _oParentFolder;
         private IntPtr[] _arrPIDLs;
         private string _strParentFolder;
+        private bool disposed;
+        private bool handleCreated;
         #endregion
 
         #region Variables and Constants

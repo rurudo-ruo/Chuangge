@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Runtime.InteropServices;
 
@@ -8,21 +8,43 @@ namespace 窗格.Win32
 
     public static class IconUtil
     {
+        private static readonly object folderIconLock = new object();
         private static Icon folderIcon;
 
-        public static Icon FolderLarge => folderIcon ?? (folderIcon = GetStockIcon(SHSIID_FOLDER, SHGSI_LARGEICON));
+        public static Icon FolderLarge
+        {
+            get
+            {
+                var cached = folderIcon;
+                if (cached != null)
+                    return cached;
+
+                lock (folderIconLock)
+                {
+                    if (folderIcon == null)
+                        folderIcon = GetStockIcon(SHSIID_FOLDER, SHGSI_LARGEICON);
+                    return folderIcon;
+                }
+            }
+        }
 
         private static Icon GetStockIcon(uint type, uint size)
         {
             var info = new SHSTOCKICONINFO();
             info.cbSize = (uint)Marshal.SizeOf(info);
 
-            SHGetStockIconInfo(type, SHGSI_ICON | size, ref info);
+            var result = SHGetStockIconInfo(type, SHGSI_ICON | size, ref info);
+            if (result != 0 || info.hIcon == IntPtr.Zero)
+                return (Icon)SystemIcons.WinLogo.Clone();
 
-            var icon = (Icon)Icon.FromHandle(info.hIcon).Clone(); // Get a copy that doesn't use the original handle
-            DestroyIcon(info.hIcon); // Clean up native icon to prevent resource leak
-
-            return icon;
+            try
+            {
+                return (Icon)Icon.FromHandle(info.hIcon).Clone(); // Copy that does not use the original handle
+            }
+            finally
+            {
+                DestroyIcon(info.hIcon); // Clean up native icon to prevent resource leak
+            }
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]

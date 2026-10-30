@@ -5,30 +5,31 @@ namespace 窗格
 {
     internal sealed class FenceLayout
     {
-        private readonly int width;
         private readonly int titleHeight;
         private readonly int scrollOffset;
         private readonly int itemPadding;
         private readonly int itemWidth;
         private readonly int itemHeight;
+        private readonly int columnCount;
+        private readonly int strideX;
+        private readonly int strideY;
 
         public FenceLayout(int width, int titleHeight, int scrollOffset, int itemPadding, int itemWidth, int itemHeight)
         {
-            this.width = width;
             this.titleHeight = titleHeight;
             this.scrollOffset = scrollOffset;
             this.itemPadding = itemPadding;
             this.itemWidth = itemWidth;
             this.itemHeight = itemHeight;
+            strideX = itemWidth + itemPadding;
+            strideY = itemHeight + itemPadding;
+            columnCount = GetColumnCount(width, itemPadding, itemWidth);
         }
 
         public Rectangle GetItemBounds(int index)
         {
-            var columns = GetColumnCount(width, itemPadding, itemWidth);
-            var row = index / columns;
-            var column = index % columns;
-            var strideX = itemWidth + itemPadding;
-            var strideY = itemHeight + itemPadding;
+            var row = index / columnCount;
+            var column = index % columnCount;
             return new Rectangle(
                 itemPadding + column * strideX,
                 itemPadding + row * strideY + titleHeight - scrollOffset,
@@ -41,10 +42,9 @@ namespace 窗格
             if (itemCount <= 0 || point.X < itemPadding)
                 return -1;
 
-            var strideX = itemWidth + itemPadding;
             var columnOffset = point.X - itemPadding;
             var column = columnOffset / strideX;
-            if (column >= GetColumnCount(width, itemPadding, itemWidth)
+            if (column >= columnCount
                 || columnOffset % strideX >= itemWidth)
                 return -1;
 
@@ -52,12 +52,11 @@ namespace 窗格
             if (rowOffset < 0)
                 return -1;
 
-            var strideY = itemHeight + itemPadding;
             var row = rowOffset / strideY;
             if (rowOffset % strideY >= itemHeight)
                 return -1;
 
-            var index = row * GetColumnCount(width, itemPadding, itemWidth) + column;
+            var index = row * columnCount + column;
             return index < itemCount ? index : -1;
         }
 
@@ -69,20 +68,18 @@ namespace 窗格
             if (itemCount <= 0 || clip.IsEmpty)
                 return;
 
-            var columns = GetColumnCount(width, itemPadding, itemWidth);
-            var strideY = itemHeight + itemPadding;
             var baseTop = itemPadding + titleHeight - scrollOffset;
             var firstRow = Math.Max(0, FloorDivide(
                 clip.Top - baseTop - itemHeight - effectPadding, strideY) + 1);
             var lastRow = FloorDivide(
                 clip.Bottom - 1 - baseTop + effectPadding, strideY);
-            var rowCount = (itemCount + columns - 1) / columns;
+            var rowCount = (itemCount + columnCount - 1) / columnCount;
             lastRow = Math.Min(rowCount - 1, lastRow);
             if (firstRow > lastRow)
                 return;
 
-            firstIndex = firstRow * columns;
-            lastIndex = Math.Min(itemCount - 1, (lastRow + 1) * columns - 1);
+            firstIndex = firstRow * columnCount;
+            lastIndex = Math.Min(itemCount - 1, (lastRow + 1) * columnCount - 1);
         }
 
         public int GetDropInsertionIndex(Point point, int itemCount)
@@ -130,17 +127,15 @@ namespace 窗格
             if (itemCount == 0)
                 return 0;
 
-            var columns = GetColumnCount(width, itemPadding, itemWidth);
-            var rows = (itemCount + columns - 1) / columns;
-            var contentBottom = itemPadding + (rows - 1) * (itemHeight + itemPadding) + itemHeight;
+            var rows = (itemCount + columnCount - 1) / columnCount;
+            var contentBottom = itemPadding + (rows - 1) * strideY + itemHeight;
             return Math.Max(0, contentBottom - viewportHeight);
         }
 
         public Size GetFitSize(int itemCount)
         {
-            var columns = GetColumnCount(width, itemPadding, itemWidth);
-            var rows = (itemCount + columns - 1) / columns;
-            var targetWidth = itemPadding + columns * (itemWidth + itemPadding);
+            var rows = (itemCount + columnCount - 1) / columnCount;
+            var targetWidth = itemPadding + columnCount * strideX;
             var targetHeight = titleHeight + (Math.Max(1, rows) + 1) * itemPadding
                 + rows * itemHeight;
             return new Size(targetWidth, targetHeight);

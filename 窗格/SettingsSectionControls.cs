@@ -90,7 +90,7 @@ namespace 窗格
             return new Label
             {
                 AutoSize = true,
-                Font = new Font(FluentTheme.BodyFont, FontStyle.Bold),
+                Font = FluentTheme.BoldBodyFont,
                 Margin = new Padding(0, 0, 0, 12),
                 Text = UiText.Get(text)
             };
@@ -167,7 +167,7 @@ namespace 窗格
             return new Label
             {
                 AutoSize = true,
-                Font = new Font(FluentTheme.BodyFont, FontStyle.Bold),
+                Font = FluentTheme.BoldBodyFont,
                 Margin = new Padding(0, 0, 0, 8),
                 Text = text
             };
@@ -259,7 +259,7 @@ namespace 窗格
             layout.Controls.Add(new Label
             {
                 AutoSize = true,
-                Font = new Font(FluentTheme.BodyFont, FontStyle.Bold),
+                Font = FluentTheme.BoldBodyFont,
                 Margin = new Padding(0, 0, 0, 8),
                 Text = UiText.Get("Fence data folder:")
             }, 0, 0);
