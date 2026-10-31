@@ -49,12 +49,12 @@ proved behavior-neutral moves to Phase B rather than being forced.
 
 | Phase | Items | Done | Doing | Todo | Won't fix |
 |---|---|---|---|---|---|
-| A — no observable behavior change | 19 | 15 | 4 | 0 | 0 |
+| A — no observable behavior change | 19 | 16 | 3 | 0 | 0 |
 | B — behavior fixes | 11 | 10 | 0 | 1 | 0 |
 | C — hardening and process | 8 | 7 | 0 | 1 | 0 |
 | D — already satisfied (verified) | 10 | 10 | 0 | 0 | 0 |
 | W — won't fix | 2 | 0 | 0 | 0 | 2 |
-| **Total** | **50** | **42** | **4** | **2** | **2** |
+| **Total** | **50** | **43** | **3** | **2** | **2** |
 
 ---
 
@@ -82,7 +82,7 @@ safe to land behind a build + smoke test and they de-risk Phase B (which edits t
 | A15 | Remove `Extensions.cs`: csproj entry is gone; the file still needs deleting | [Extensions.cs](窗格/Util/Extensions.cs) | S | Doing |
 | A16 | Dispose designer controls before `Controls.Clear()` in `EditDialog` | [EditDialog.cs:60](窗格/EditDialog.cs#L60) | S | Done |
 | A17 | Analyzers and `<TreatWarningsAsErrors>`. Warnings-as-errors is on; the analyzer package is deferred to §12 Stage 5 | [窗格.csproj](窗格/窗格.csproj) | M | Doing |
-| A18 | Extract `FenceRenderer` / `FenceDragController` from the 1.3k-line window. Renderer is extracted (A18a); drag controller remains (A18b) | [FenceRenderer.cs](窗格/FenceRenderer.cs), [FenceWindow.cs](窗格/FenceWindow.cs) | L | Doing |
+| A18 | Extract `FenceRenderer` and `FenceDragController` from the 1.3k-line window; both halves applied | [FenceRenderer.cs](窗格/FenceRenderer.cs), [FenceDragController.cs](窗格/FenceDragController.cs) | L | Done |
 | A19 | Collapse duplicated save-error ladders into shared helpers | [FenceManager.cs:48–126](窗格/Model/FenceManager.cs#L48-L126), [FenceViewModel.cs:22–34](窗格/FenceViewModel.cs#L22-L34) | S | Done |
 
 ### Phase A notes
@@ -297,12 +297,13 @@ items (image, exe, folder, missing) — the rendering must be pixel-identical.
 | 2026-10-31 | Fixed regression from B7: suppressing only one `WM_NCCALCSIZE` pass let Windows paint a native caption over every fence. All passes are suppressed again. |
 | 2026-10-31 | Stage 1 applied: shared load and save-error helpers (A19), dialog control disposal (A16), dead files out of the project (A14/A15), warnings-as-errors (A17a). Physical file deletion and the first build remain. |
 | 2026-10-31 | A18a applied: `FenceRenderer` owns item drawing, the effect caches, the icon font and item brushes; renderer calls now pass `itemHeight` and the selection flag. A18b (drag controller) remains. |
+| 2026-10-31 | A18b applied: `FenceDragController` owns the drag gesture, DnD effects and insertion marker; the window forwards events and exposes `IsLocked`, `ItemPaths`, `SelectedPath`, `ViewModel` and the layout/cache helpers internally. |
 
 ---
 
 ## 12. Remaining work plan
 
-**Backlog: 4 in progress (A14, A15, A17, A18a), 2 not started (B11, C5), 42 done, 2 won't fix.**
+**Backlog: 3 in progress (A14, A15, A17), 2 not started (B11, C5), 43 done, 2 won't fix.**
 Stage 1 is applied except for the physical file deletion, which needs a shell. Every stage below
 closes on a Release build; the agent's process runner is still broken in this session, so the build
 is the user's step, not the agent's.
@@ -328,10 +329,11 @@ orphan files; this document updated.
 
 ### Stage 2 — Window structure (L, ~1–2 days)
 
-**A18** — Split into two commits. **A18a** (done): per-item drawing, the effect caches, the icon
-font and the item brushes moved into [`FenceRenderer`](窗格/FenceRenderer.cs); `FenceWindow` keeps
-layout, background, title, scroll bar, drag marker and the pointer halo. **A18b** (remaining):
-thumbnail drag, drop targeting and the drag effects move into `FenceDragController`.
+**A18** — Applied in two commits. **A18a**: per-item drawing, the effect caches, the icon font and
+the item brushes moved into [`FenceRenderer`](窗格/FenceRenderer.cs). **A18b**: thumbnail drag,
+drop targeting and the drag effects moved into [`FenceDragController`](窗格/FenceDragController.cs);
+`FenceWindow` forwards its input events and exposes the internal accessors those two need.
+`FenceWindow` is down from 1,366 to ~1,160 lines.
 
 *Done when:* the §9 checklist passes, plus before/after screenshots of a mixed fence (image, exe,
 folder, missing item, selection, drag marker, scrollbar).

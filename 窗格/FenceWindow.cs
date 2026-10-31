@@ -28,19 +28,26 @@ namespace 窗格
 
         internal string FenceName => fenceInfo.Name;
 
+        internal bool IsLocked => lockedToolStripMenuItem.Checked;
+
+        internal List<string> ItemPaths => fenceInfo.Files;
+
+        internal FenceViewModel ViewModel => viewModel;
+
+        internal string SelectedPath
+        {
+            get { return selectedItem; }
+            set { selectedItem = value; }
+        }
+
         private Font titleFont;
         private readonly FenceRenderer renderer;
+        private readonly FenceDragController drag;
 
         private string selectedItem;
         private string hoveringItem;
         private bool isMinified;
         private int prevHeight;
-        private Point thumbnailMouseDown;
-        private string thumbnailDragPath;
-        private int thumbnailDragIndex = -1;
-        private bool isDraggingThumbnail;
-        private bool suppressNextClick;
-        private int dragInsertionIndex = -1;
         private Point pointerPosition;
         private bool pointerInside;
         private Point glowPosition;
@@ -63,13 +70,6 @@ namespace 窗格
         private readonly ToolStripMenuItem openMissingParentItem = new ToolStripMenuItem(UiText.Get("Open containing folder"));
         private readonly ToolStripSeparator missingItemSeparator = new ToolStripSeparator();
         private string removeItemText;
-
-        private sealed class FenceItemDragData
-        {
-            public FenceWindow Source { get; set; }
-            public string Path { get; set; }
-            public int Index { get; set; }
-        }
 
         private readonly Dictionary<string, FenceEntry> entryCache =
             new Dictionary<string, FenceEntry>(StringComparer.OrdinalIgnoreCase);
@@ -109,6 +109,7 @@ namespace 窗格
             thumbnailProvider.IconThumbnailLoaded += ThumbnailProvider_IconThumbnailLoaded;
 
             renderer = new FenceRenderer(thumbnailProvider, ContentToDeviceUnits);
+            drag = new FenceDragController(this);
             ReloadFonts();
             renderer.ReloadFonts();
             renderer.UpdateThemeBrushes();
@@ -353,116 +354,25 @@ namespace 窗格
 
         private void FenceWindow_DragEnter(object sender, DragEventArgs e)
         {
-            if (lockedToolStripMenuItem.Checked)
-                return;
-
-            if (e.Data.GetDataPresent(typeof(FenceItemDragData)))
-                e.Effect = DragDropEffects.Move;
-            else if (e.Data.GetDataPresent(DataFormats.FileDrop))
-                e.Effect = DragDropEffects.Copy;
+            drag.OnDragEnter(e);
         }
 
         private void FenceWindow_DragOver(object sender, DragEventArgs e)
         {
-            if (lockedToolStripMenuItem.Checked)
-            {
-                e.Effect = DragDropEffects.None;
-                ClearDragInsertionMarker();
-                return;
-            }
-
-            if (e.Data.GetDataPresent(typeof(FenceItemDragData)))
-            {
-                e.Effect = DragDropEffects.Move;
-                dragInsertionIndex = GetDropInsertionIndex(PointToClient(new Point(e.X, e.Y)));
-                Invalidate();
-            }
-            else if (e.Data.GetDataPresent(DataFormats.FileDrop))
-            {
-                e.Effect = DragDropEffects.Copy;
-            }
+            drag.OnDragOver(e);
         }
 
         private void FenceWindow_DragLeave(object sender, EventArgs e)
         {
-            ClearDragInsertionMarker();
+            drag.OnDragLeave();
         }
 
         private void FenceWindow_DragDrop(object sender, DragEventArgs e)
         {
-            try
-            {
-                if (lockedToolStripMenuItem.Checked)
-                    return;
-
-                var itemDrag = e.Data.GetData(typeof(FenceItemDragData)) as FenceItemDragData;
-                if (itemDrag != null)
-                {
-                    MoveFenceItem(itemDrag, GetDropInsertionIndex(PointToClient(new Point(e.X, e.Y))));
-                    return;
-                }
-
-                var dropped = e.Data.GetData(DataFormats.FileDrop) as string[];
-                if (dropped == null)
-                    return;
-
-                try
-                {
-                    viewModel.AddExistingItems(dropped);
-                    RefreshEntryCache();
-                }
-                catch (Exception ex) when (FenceViewModel.IsSaveError(ex))
-                {
-                    MessageBox.Show(this, ex.Message, UiText.Get("Could not save fence items"),
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-            finally
-            {
-                ClearDragInsertionMarker();
-                Invalidate();
-            }
+            drag.OnDragDrop(e);
         }
 
-        private void MoveFenceItem(FenceItemDragData dragData, int insertionIndex)
-        {
-            var source = dragData.Source;
-            var sourceIndex = dragData.Index >= 0 && dragData.Index < source.fenceInfo.Files.Count
-                && string.Equals(source.fenceInfo.Files[dragData.Index], dragData.Path, StringComparison.OrdinalIgnoreCase)
-                ? dragData.Index
-                : source.fenceInfo.Files.FindIndex(path =>
-                    string.Equals(path, dragData.Path, StringComparison.OrdinalIgnoreCase));
-            if (sourceIndex < 0)
-                return;
-
-            try
-            {
-                if (source == this)
-                {
-                    if (!viewModel.ReorderItem(sourceIndex, insertionIndex))
-                        return;
-                    selectedItem = dragData.Path;
-                }
-                else
-                {
-                    if (!viewModel.MoveItemFrom(source.viewModel, dragData.Path, sourceIndex, insertionIndex))
-                        return;
-                    selectedItem = dragData.Path;
-                    source.selectedItem = null;
-                    source.RemoveRenderCacheEntry(dragData.Path);
-                    source.Invalidate();
-                }
-                RemoveRenderCacheEntry(dragData.Path);
-            }
-            catch (Exception ex) when (FenceViewModel.IsSaveError(ex))
-            {
-                ShowItemSaveError(ex);
-            }
-
-            Invalidate();
-        }
-
-        private void ShowItemSaveError(Exception ex)
+        internal void ShowItemSaveError(Exception ex)
         {
             AppLogger.Error("Could not save fence item", ex);
             MessageBox.Show(this, ex.Message, UiText.Get("Could not save fence item"), MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -473,12 +383,6 @@ namespace 窗格
             AppLogger.Error("Could not save fence", ex);
             MessageBox.Show(this, ex.Message, UiText.Get("Fence could not be saved"),
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
-        }
-
-        private void ClearDragInsertionMarker()
-        {
-            dragInsertionIndex = -1;
-            Invalidate();
         }
 
         private void FenceWindow_Resize(object sender, EventArgs e)
@@ -500,40 +404,7 @@ namespace 窗格
             var hoveredItemIndex = GetItemIndexAt(e.Location);
             hoveringItem = hoveredItemIndex >= 0 ? fenceInfo.Files[hoveredItemIndex] : null;
 
-            if (!lockedToolStripMenuItem.Checked && e.Button == MouseButtons.Left && thumbnailDragPath != null
-                && !isDraggingThumbnail)
-            {
-                var dragSize = SystemInformation.DragSize;
-                var dragRectangle = new Rectangle(
-                    thumbnailMouseDown.X - dragSize.Width / 2,
-                    thumbnailMouseDown.Y - dragSize.Height / 2,
-                    dragSize.Width,
-                    dragSize.Height);
-                if (!dragRectangle.Contains(e.Location))
-                {
-                    isDraggingThumbnail = true;
-                    suppressNextClick = true;
-                    try
-                    {
-                        var dragData = new FenceItemDragData
-                        {
-                            Source = this,
-                            Path = thumbnailDragPath,
-                            Index = thumbnailDragIndex
-                        };
-                        var data = new DataObject();
-                        data.SetData(typeof(FenceItemDragData), dragData);
-                        DoDragDrop(data, DragDropEffects.Move);
-                    }
-                    finally
-                    {
-                        thumbnailDragPath = null;
-                        thumbnailDragIndex = -1;
-                        isDraggingThumbnail = false;
-                        ClearDragInsertionMarker();
-                    }
-                }
-            }
+            drag.UpdateDrag(e);
 
             if (GlobalFenceSettings.GlowEffectsEnabled && GlobalFenceSettings.PointerGlowIntensity > 0)
                 UpdatePointerGlow(pointerPosition);
@@ -541,33 +412,17 @@ namespace 窗格
 
         private void FenceWindow_MouseDown(object sender, MouseEventArgs e)
         {
-            suppressNextClick = false;
-            if (e.Button != MouseButtons.Left || lockedToolStripMenuItem.Checked)
-                return;
-
-            var itemIndex = GetItemIndexAt(e.Location);
-            thumbnailDragPath = itemIndex >= 0 ? fenceInfo.Files[itemIndex] : null;
-            thumbnailDragIndex = itemIndex;
-            thumbnailMouseDown = e.Location;
+            drag.OnMouseDown(e);
         }
 
         private void FenceWindow_MouseUp(object sender, MouseEventArgs e)
         {
-            if (e.Button == MouseButtons.Left && !isDraggingThumbnail)
-            {
-                thumbnailDragPath = null;
-                thumbnailDragIndex = -1;
-            }
+            drag.OnMouseUp(e);
         }
 
-        private int GetItemIndexAt(Point point)
+        internal int GetItemIndexAt(Point point)
         {
             return CreateLayout().GetItemIndexAt(point, fenceInfo.Files.Count);
-        }
-
-        private int GetDropInsertionIndex(Point point)
-        {
-            return CreateLayout().GetDropInsertionIndex(point, fenceInfo.Files.Count);
         }
 
         private Rectangle GetItemBounds(int index)
@@ -575,7 +430,7 @@ namespace 窗格
             return CreateLayout().GetItemBounds(index);
         }
 
-        private FenceLayout CreateLayout()
+        internal FenceLayout CreateLayout()
         {
             var itemPadding = ContentToDeviceUnits(logicalItemPadding);
             var itemWidth = ContentToDeviceUnits(logicalItemWidth);
@@ -624,7 +479,7 @@ namespace 窗格
         {
             var previousSelectedItem = selectedItem;
             pointerInside = false;
-            if (!isDraggingThumbnail)
+            if (!drag.IsDragging)
                 Minify();
             selectedItem = null;
             hoveringItem = null;
@@ -667,9 +522,9 @@ namespace 窗格
 
         private void FenceWindow_Click(object sender, EventArgs e)
         {
-            if (suppressNextClick)
+            if (drag.SuppressNextClick)
             {
-                suppressNextClick = false;
+                drag.SuppressNextClick = false;
                 return;
             }
 
@@ -746,8 +601,8 @@ namespace 窗格
                     itemWidth, textHeight, iconSize, itemHeight, isSelected);
             }
 
-            if (dragInsertionIndex >= 0)
-                DrawDragInsertionMarker(graphics, layout);
+            if (drag.InsertionIndex >= 0)
+                DrawDragInsertionMarker(graphics, layout, drag.InsertionIndex);
 
             scrollHeight = layout.GetContentOverflow(fenceInfo.Files.Count, ClientRectangle.Height - titleHeight);
 
@@ -781,14 +636,14 @@ namespace 窗格
 
         }
 
-        private void DrawDragInsertionMarker(Graphics graphics, FenceLayout layout)
+        private void DrawDragInsertionMarker(Graphics graphics, FenceLayout layout, int insertionIndex)
         {
             if (fenceInfo.Files.Count == 0)
                 return;
 
-            var beforeItem = dragInsertionIndex < fenceInfo.Files.Count;
+            var beforeItem = insertionIndex < fenceInfo.Files.Count;
             var markerTarget = beforeItem
-                ? layout.GetItemBounds(dragInsertionIndex)
+                ? layout.GetItemBounds(insertionIndex)
                 : layout.GetItemBounds(fenceInfo.Files.Count - 1);
             var x = beforeItem
                 ? markerTarget.Left - ContentToDeviceUnits(3)
@@ -806,7 +661,7 @@ namespace 窗格
             renderer.Clear();
         }
 
-        private void RemoveRenderCacheEntry(string path)
+        internal void RemoveRenderCacheEntry(string path)
         {
             renderer.Remove(path);
         }
@@ -836,7 +691,7 @@ namespace 窗格
         /// Re-probes the items of this fence off the paint path. Called when the pointer enters
         /// the fence and after content-changing operations.
         /// </summary>
-        private void RefreshEntryCache()
+        internal void RefreshEntryCache()
         {
             if (fenceInfo.Files.Count == 0)
             {
