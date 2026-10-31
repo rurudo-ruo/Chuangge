@@ -53,6 +53,19 @@ namespace 窗格.Win32
         [DllImport("gdi32.dll")]
         private static extern bool DeleteObject(IntPtr hObject);
 
+        /// <summary>
+        /// Switches the native title bar between light and dark. Uses the Windows 10 2004+
+        /// attribute and falls back to the 1809 attribute on older builds.
+        /// </summary>
+        public static void ApplyDarkTitleBar(IntPtr hWnd, bool dark)
+        {
+            const int useImmersiveDarkMode = 20;
+            const int useImmersiveDarkModeBefore20H1 = 19;
+            var value = dark ? 1 : 0;
+            if (DropShadow.DwmSetWindowAttribute(hWnd, useImmersiveDarkMode, ref value, sizeof(int)) != 0)
+                DropShadow.DwmSetWindowAttribute(hWnd, useImmersiveDarkModeBefore20H1, ref value, sizeof(int));
+        }
+
         public static bool ApplyRoundedCorners(IntPtr hWnd, int width, int height, int radius)
         {
             const int dwmWindowCornerPreference = 33;

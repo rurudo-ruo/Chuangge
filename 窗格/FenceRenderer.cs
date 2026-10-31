@@ -33,6 +33,7 @@ namespace 窗格
         private Pen selectionBorderPen;
         private SolidBrush itemNameBrush;
         private SolidBrush missingNameBrush;
+        private SolidBrush hoverBrush;
         private long renderCacheAccessOrder;
 
         public FenceRenderer(ThumbnailProvider thumbnailProvider, Func<int, int> contentToDeviceUnits)
@@ -58,15 +59,17 @@ namespace 窗格
             selectionBorderPen?.Dispose();
             itemNameBrush?.Dispose();
             missingNameBrush?.Dispose();
+            hoverBrush?.Dispose();
 
             selectionBrush = new SolidBrush(FluentTheme.AccentOverlay(FluentTheme.IsDark ? 64 : 42));
             selectionBorderPen = new Pen(Color.FromArgb(210, FluentTheme.Accent));
             itemNameBrush = new SolidBrush(FluentTheme.Text);
             missingNameBrush = new SolidBrush(Color.FromArgb(255, 224, 176));
+            hoverBrush = new SolidBrush(Color.FromArgb(FluentTheme.IsDark ? 26 : 18, FluentTheme.Text));
         }
 
         public void DrawItem(Graphics g, FenceEntry entry, int x, int y, int itemWidth,
-            int textHeight, int iconSize, int itemHeight, bool isSelected)
+            int textHeight, int iconSize, int itemHeight, bool isSelected, bool isHovered)
         {
             var icon = entry.ExtractIcon(thumbnailProvider, iconSize);
             var name = entry.Name;
@@ -82,6 +85,12 @@ namespace 窗格
             var contentOffset = Math.Max(0, (itemHeight - contentHeight) / 2);
             var iconY = y + contentOffset;
             var textPosition = new PointF(x, iconY + iconSize + iconTextGap);
+
+            if (isHovered && !isSelected)
+            {
+                using (var hoverPath = CreateRoundedRectangle(cardRect, contentToDeviceUnits(7)))
+                    g.FillPath(hoverBrush, hoverPath);
+            }
 
             if (isSelected)
             {
@@ -104,7 +113,8 @@ namespace 窗格
 
             var shadowRadius = contentToDeviceUnits(3);
             var shadowOffset = contentToDeviceUnits(1);
-            var shadowOpacity = FluentTheme.IsDark ? 82 : 58;
+            // Dark text on the light theme needs far less shadow than light text on dark.
+            var shadowOpacity = FluentTheme.IsDark ? 82 : 40;
             var blurredText = GetTextShadow(entry, name, textMaxSize, shadowRadius,
                 shadowOffset, shadowOpacity, itemTextFormat);
             g.DrawImageUnscaled(blurredText,
@@ -152,6 +162,7 @@ namespace 窗格
             selectionBorderPen?.Dispose();
             itemNameBrush?.Dispose();
             missingNameBrush?.Dispose();
+            hoverBrush?.Dispose();
             Clear();
         }
 

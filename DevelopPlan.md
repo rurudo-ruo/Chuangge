@@ -50,11 +50,11 @@ proved behavior-neutral moves to Phase B rather than being forced.
 | Phase | Items | Done | Doing | Todo | Won't fix |
 |---|---|---|---|---|---|
 | A — no observable behavior change | 19 | 16 | 3 | 0 | 0 |
-| B — behavior fixes | 11 | 11 | 0 | 0 | 0 |
+| B — behavior fixes | 11 | 10 | 0 | 0 | 1 |
 | C — hardening and process | 8 | 7 | 0 | 0 | 1 |
 | D — already satisfied (verified) | 10 | 10 | 0 | 0 | 0 |
 | W — declined standalone items (W1, W2) | 2 | 0 | 0 | 0 | 2 |
-| **Total** | **50** | **44** | **3** | **0** | **3** |
+| **Total** | **50** | **43** | **3** | **0** | **4** |
 
 ---
 
@@ -120,7 +120,7 @@ safe to land behind a build + smoke test and they de-risk Phase B (which edits t
 | B8 | Bound the thumbnail cache (LRU) and drain replaced icons on the UI thread | [ThumbnailProvider.cs](窗格/Util/ThumbnailProvider.cs) | M | Done |
 | B9 | Stop forcing a synchronous repaint on every resize/minify | [FenceWindow.cs:544–554](窗格/FenceWindow.cs#L544-L554), [691–700](窗格/FenceWindow.cs#L691-L700) | S | Done |
 | B10 | Hoist per-item brushes/pens into theme-scoped fields | [FenceWindow.cs:871–900](窗格/FenceWindow.cs#L871-L900) | S | Done |
-| B11 | Cache fence content in an offscreen bitmap so glow-only paints blit instead of re-rendering items | [FenceWindow.cs](窗格/FenceWindow.cs) | M | Done |
+| B11 | Cache fence content in an offscreen bitmap — reverted: the opaque cache removes the per-pixel alpha the DWM blur and theme tint need | [FenceWindow.cs](窗格/FenceWindow.cs) | M | Won't fix |
 
 ### Phase B acceptance notes
 
@@ -205,9 +205,10 @@ are recorded so a future pass does not "fix" them into a regression.
 | W1 | Rename the `fenceInfo` property to PascalCase | [FenceWindow.cs:28](窗格/FenceWindow.cs#L28). The constructor parameter of the same name is captured by the property after assignment; a mechanical rename can silently rebind it. Cosmetic only — revisit if/when **A18** splits the window. |
 | W2 | Replace the Gaussian blur with a box blur / SIMD implementation | The blur is cached per item and runs on change, not per frame. **A4** removes the remaining repeated invocations; a kernel rewrite is disproportionate to the measured cost. |
 | W3 | Keyboard and UI Automation access for fence items (**C5**) | This is a GUI-first desktop organiser; accessibility support is out of scope for now. The interaction notes remain in §12 Stage 4 so it can be reconsidered if the requirement appears. |
+| W4 | Offscreen content cache (**B11**) | The cached bitmap flattened the window to opaque pixels, which removed the per-pixel alpha the DWM blur and the theme tint depend on. Fences must paint directly to the window surface; revisit only with an alpha-preserving cache and visual verification. |
 
-W3 is Phase C item **C5**, listed here for its rationale; it is counted under Phase C in §2, not
-under the standalone W row.
+W3 is Phase C item **C5** and W4 is Phase B item **B11** (reverted); both are listed here for their
+rationale and are counted under their own phases in §2, not under the standalone W row.
 
 ---
 
@@ -267,8 +268,11 @@ Because the project has no automated tests, every phase closes on this manual pa
 12. Make a fence folder read-only, change a fence, and confirm a log file appears under
     `%LOCALAPPDATA%\NoFences\logs` and the fence stays open with an error dialog (C3).
 13. After each content change — apply settings, switch theme, scroll, select, drag, drop, delete,
-    replace, rename — the fence shows the new state immediately; no stale title, item, marker or
-    scroll bar remains from the cached bitmap (B11).
+    replace, rename — the fence repaints immediately with no stale pixels.
+14. UI polish pass: non-square images keep their aspect ratio (letterboxed, not stretched);
+    hovering an item shows a subtle card; corners are rounded on Windows 11; the settings and
+    rename dialogs use a dark title bar in dark mode; the tray and fence menus share the same
+    render mode, font and padding.
 
 Phase A adds one extra check: **compare before/after screenshots** of a fence with a mixed set of
 items (image, exe, folder, missing) — the rendering must be pixel-identical.
@@ -292,6 +296,7 @@ items (image, exe, folder, missing) — the rendering must be pixel-identical.
 | 2026-10-31 | C6 package versions and `dotnet test` against the legacy project are unverified | No compiler or SDK access in this session; the pull-request workflow is the first real check. |
 | 2026-10-31 | B11 rebuilds the whole content bitmap on any content invalidation | Simple and correct without pixel tests; region-scoped updates can come later if thumbnail-heavy fences show startup cost. |
 | 2026-10-31 | C5 (accessibility) moved to won't fix | GUI-first project; keyboard/UIA support is not in scope for now. |
+| 2026-10-31 | B11 reverted after a visual regression | The opaque content cache removed the per-pixel alpha the DWM blur and theme tint depend on; direct painting is required. |
 
 ---
 
@@ -310,12 +315,14 @@ items (image, exe, folder, missing) — the rendering must be pixel-identical.
 | 2026-10-31 | A18b applied: `FenceDragController` owns the drag gesture, DnD effects and insertion marker; the window forwards events and exposes `IsLocked`, `ItemPaths`, `SelectedPath`, `ViewModel` and the layout/cache helpers internally. |
 | 2026-10-31 | B11 applied: fence content is cached in an opaque offscreen bitmap; glow-only paints blit it plus the halo, and `InvalidateContent()` is used by every content-changing path. |
 | 2026-10-31 | C5 marked won't fix: GUI-first project, no accessibility work planned for now. |
+| 2026-10-31 | UI polish: aspect-correct thumbnails (letterboxed), hover cards on items, Windows 11 rounded fence corners, softer pointer halo, lighter light-mode label shadow, dark title bars for settings/rename, matching tray and fence menu styling. |
+| 2026-10-31 | Reverted B11's offscreen content cache: it flattened the translucent look (no DWM blur, no theme tint). Fences paint straight to the window surface again. |
 
 ---
 
 ## 12. Remaining work plan
 
-**Backlog: 3 in progress (A14, A15, A17), 0 not started, 44 done, 3 won't fix.**
+**Backlog: 3 in progress (A14, A15, A17), 0 not started, 43 done, 4 won't fix.**
 Stage 1 is applied except for the physical file deletion, which needs a shell. Every stage below
 closes on a Release build; the agent's process runner is still broken in this session, so the build
 is the user's step, not the agent's.
@@ -352,15 +359,11 @@ folder, missing item, selection, drag marker, scrollbar).
 
 ### Stage 3 — Compositing (M, ~1 day plus testing)
 
-**B11** — Applied. `FenceWindow` renders background, title, items, drag marker and scroll bar into
-an opaque `contentBitmap` sized to the client area and created at the screen DPI; a paint blits it
-pixel-for-pixel and draws the pointer halo on top. `InvalidateContent()` marks the bitmap stale and
-is used by every content path (settings, DPI, resize/minify, scroll, selection, drag/drop,
-delete/replace, thumbnail load, rename); glow invalidations keep calling `Invalidate()` so they
-reuse the bitmap. Content changes rebuild the whole bitmap and blit only the invalidated region.
-The scroll offset is clamped before drawing, so a cached frame never holds an unclamped offset.
-A thumbnail load still rebuilds the whole bitmap (only that item's rect is blitted); if startup
-cost shows up with many images, a region-scoped bitmap update is the next step.
+**B11** — Reverted (see **W4** in §7). The cache drew the fence into an opaque bitmap and blitted
+it; that removed the per-pixel alpha from the translucent fills, so the DWM blur and the theme tint
+disappeared. `FenceWindow` paints straight to the window surface again, with `RenderContent` kept as
+the single drawing entry point and `InvalidateContent()` as the repaint entry the drag controller
+uses.
 
 *Done when:* a pointer sweep leaves no trails and no stale content in any of those paths, and paint
 time during a glow sweep drops measurably (temporary `Stopwatch` instrumentation).
@@ -381,16 +384,17 @@ restore, which the build script does not currently perform.
 ### Why this order
 
 - Deletions and the error-ladder collapse are cheap and shrink everything that follows.
-- A18 had to precede B11; it would also be the prerequisite if the declined C5 work ever resumes.
+- A18 had to precede B11, which was later reverted (W4); A18 is also the prerequisite if the
+  declined C5 work ever resumes.
 - Warnings-as-errors early (A17a) so the remaining stages cannot silently add warnings.
 
-The three won't-fix items (W1 property rename, W2 blur kernel rewrite, W3 = C5 accessibility) stay
-declined; see §7.
+The four won't-fix items (W1 property rename, W2 blur kernel rewrite, W3 = C5 accessibility,
+W4 = B11 reverted) stay declined; see §7.
 
 | Stage | Items | Effort | Gate |
 |---|---|---|---|
 | 1 | A19, A14, A15, A16, A17a | S–M | one clean Release build |
 | 2 | A18 | L | Stage 1 verified |
-| 3 | B11 | M | A18 merged |
+| 3 | B11 (reverted) | — | none |
 | 4 | C5 (declined) | — | none |
 | 5 | A17b | S | NuGet restore added to the build |

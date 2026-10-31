@@ -76,8 +76,6 @@ namespace 窗格
         private long wheelDeltaRemainder;
         private Bitmap pointerGlowBitmap;
         private int pointerGlowRadius;
-        private Bitmap contentBitmap;
-        private bool contentValid;
 
         private void ReloadFonts()
         {
@@ -86,6 +84,18 @@ namespace 窗格
             var oldTitleFont = titleFont;
             titleFont = newTitleFont;
             oldTitleFont?.Dispose();
+        }
+
+        /// <summary>
+        /// Asks DWM to round the fence corners. Windows 11 honours this; older versions keep the
+        /// square window, which preserves the drop shadow that a clipping region would cost.
+        /// </summary>
+        private void UpdateWindowCorners()
+        {
+            const int dwmWindowCornerPreference = 33;
+            const int dwmRound = 2;
+            var preference = dwmRound;
+            DropShadow.DwmSetWindowAttribute(Handle, dwmWindowCornerPreference, ref preference, sizeof(int));
         }
 
         public FenceWindow(FenceInfo fenceInfo)
@@ -126,6 +136,8 @@ namespace 窗格
 
             Width = fenceInfo.Width;
             Height = fenceInfo.Height;
+
+            UpdateWindowCorners();
 
             prevHeight = Height;
             lockedToolStripMenuItem.Checked = fenceInfo.Locked;
@@ -254,8 +266,6 @@ namespace 窗格
             debouncedMove.Dispose();
             debouncedResize.Dispose();
             renderer.Dispose();
-            contentBitmap?.Dispose();
-            contentBitmap = null;
             pointerGlowBitmap?.Dispose();
             pointerGlowBitmap = null;
             titleFont?.Dispose();
@@ -406,8 +416,14 @@ namespace 窗格
         {
             pointerPosition = e.Location;
             pointerInside = true;
+            var previousHoveringItem = hoveringItem;
             var hoveredItemIndex = GetItemIndexAt(e.Location);
             hoveringItem = hoveredItemIndex >= 0 ? fenceInfo.Files[hoveredItemIndex] : null;
+            if (!string.Equals(previousHoveringItem, hoveringItem, StringComparison.OrdinalIgnoreCase))
+            {
+                InvalidateItem(previousHoveringItem);
+                InvalidateItem(hoveringItem);
+            }
 
             drag.UpdateDrag(e);
 
@@ -483,11 +499,13 @@ namespace 窗格
         private void FenceWindow_MouseLeave(object sender, EventArgs e)
         {
             var previousSelectedItem = selectedItem;
+            var previousHoveringItem = hoveringItem;
             pointerInside = false;
             if (!drag.IsDragging)
                 Minify();
             selectedItem = null;
             hoveringItem = null;
+            InvalidateItem(previousHoveringItem);
             if (glowVisible)
             {
                 InvalidatePointerGlow(glowPosition);
@@ -550,25 +568,10 @@ namespace 窗格
         private void FenceWindow_Paint(object sender, PaintEventArgs e)
         {
             var graphics = e.Graphics;
+            graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+            graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
-            EnsureContentBitmap(graphics);
-            if (!contentValid)
-            {
-                using (var contentGraphics = Graphics.FromImage(contentBitmap))
-                {
-                    contentGraphics.Clear(BackColor);
-                    contentGraphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
-                    contentGraphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                    RenderContent(contentGraphics);
-                }
-
-                contentValid = true;
-            }
-
-            graphics.DrawImage(contentBitmap,
-                new Rectangle(0, 0, contentBitmap.Width, contentBitmap.Height),
-                0, 0, contentBitmap.Width, contentBitmap.Height,
-                GraphicsUnit.Pixel);
+            RenderContent(graphics);
 
             // Keep the halo out of the title area, as it was when items and glow shared a clip.
             graphics.SetClip(new Rectangle(0, titleHeight, Width, Math.Max(0, Height - titleHeight)),
@@ -579,35 +582,18 @@ namespace 窗格
         }
 
         /// <summary>
-        /// Ensures the cached content bitmap matches the current client size and screen DPI.
-        /// </summary>
-        private void EnsureContentBitmap(Graphics graphics)
-        {
-            var width = Math.Max(1, ClientSize.Width);
-            var height = Math.Max(1, ClientSize.Height);
-            if (contentBitmap != null && contentBitmap.Width == width && contentBitmap.Height == height)
-                return;
-
-            contentBitmap?.Dispose();
-            contentBitmap = new Bitmap(width, height);
-            contentBitmap.SetResolution(graphics.DpiX, graphics.DpiY);
-            contentValid = false;
-        }
-
-        /// <summary>
-        /// Marks the cached content stale and repaints. Anything that changes what the fence shows
-        /// must use this; the pointer halo only calls <see cref="Form.Invalidate()"/> so a glow
-        /// sweep reuses the bitmap.
+        /// Marks the fence for a repaint. Kept as the content-change entry point for the drag
+        /// controller; the fence draws straight to the window surface so the DWM blur keeps the
+        /// per-pixel alpha produced by the translucent fills.
         /// </summary>
         internal void InvalidateContent()
         {
-            contentValid = false;
             Invalidate();
         }
 
         /// <summary>
-        /// Draws everything that only changes with the fence content. The pointer halo is drawn
-        /// on top of the cached bitmap, so a glow repaint is a blit rather than a full redraw.
+        /// Draws everything that changes with the fence content: background, title, items, drag
+        /// marker and scroll bar. The pointer halo is drawn separately, on top.
         /// </summary>
         private void RenderContent(Graphics graphics)
         {
@@ -669,8 +655,9 @@ namespace 窗格
                 var bounds = layout.GetItemBounds(i);
                 var entry = GetEntry(fenceInfo.Files[i]);
                 var isSelected = string.Equals(selectedItem, entry.Path, StringComparison.OrdinalIgnoreCase);
+                var isHovered = string.Equals(hoveringItem, entry.Path, StringComparison.OrdinalIgnoreCase);
                 renderer.DrawItem(graphics, entry, bounds.Left, bounds.Top,
-                    itemWidth, textHeight, iconSize, itemHeight, isSelected);
+                    itemWidth, textHeight, iconSize, itemHeight, isSelected, isHovered);
             }
 
             if (drag.InsertionIndex >= 0)
@@ -799,7 +786,6 @@ namespace 窗格
 
             var padding = Math.Max(ContentToDeviceUnits(GlobalFenceSettings.IconGlowRadius),
                 ContentToDeviceUnits(4));
-            contentValid = false;
             Invalidate(Rectangle.Inflate(CreateLayout().GetItemBounds(itemIndex), padding, padding));
         }
 
@@ -872,7 +858,7 @@ namespace 窗格
                     var opacity = (int)Math.Round(baseOpacity * GlobalFenceSettings.PointerGlowIntensity / 100.0);
                     glow.CenterColor = Color.FromArgb(opacity, highlight);
                     glow.SurroundColors = new[] { Color.FromArgb(0, highlight) };
-                    glow.FocusScales = new PointF(0.12f, 0.12f);
+                    glow.FocusScales = new PointF(0.32f, 0.32f);
                     graphics.FillPath(glow, path);
                 }
             }

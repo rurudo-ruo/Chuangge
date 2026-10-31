@@ -75,6 +75,12 @@ namespace 窗格
 
         public string NewName => tbName.Text;
 
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            窗格.Win32.WindowUtil.ApplyDarkTitleBar(Handle, FluentTheme.IsDark);
+        }
+
         private void btnOk_Click(object sender, EventArgs e)
         {
             DialogResult = DialogResult.OK;

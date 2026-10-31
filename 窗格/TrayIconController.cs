@@ -17,6 +17,10 @@ namespace 窗格
             contextMenu.Items.Add(UiText.Get("Advanced settings"), null, AdvancedSettings_Click);
             contextMenu.Items.Add(new ToolStripSeparator());
             contextMenu.Items.Add(UiText.Get("Exit"), null, Exit_Click);
+            contextMenu.RenderMode = ToolStripRenderMode.System;
+            contextMenu.Font = FluentTheme.BodyFont;
+            foreach (ToolStripItem item in contextMenu.Items)
+                item.Padding = new Padding(10, 5, 10, 5);
 
             notifyIcon = new NotifyIcon
             {

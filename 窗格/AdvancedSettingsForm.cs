@@ -1,5 +1,6 @@
 using 窗格.Model;
 using 窗格.Util;
+using 窗格.Win32;
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -81,6 +82,7 @@ namespace 窗格
             MinimizeBox = false;
             ShowInTaskbar = false;
             AutoScaleMode = AutoScaleMode.Font;
+            DoubleBuffered = true;
             ClientSize = new Size(820, 860);
             MinimumSize = new Size(640, 600);
 
@@ -503,6 +505,12 @@ namespace 窗格
             CancelButton = closeButton;
         }
 
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            WindowUtil.ApplyDarkTitleBar(Handle, FluentTheme.IsDark);
+        }
+
         private void UpdateManualThemeEnabled()
         {
             var enabled = !useSystemTheme.Checked;
@@ -632,6 +640,7 @@ namespace 窗格
             }
 
             FluentTheme.ApplyToForm(this, primaryActionButton);
+            WindowUtil.ApplyDarkTitleBar(Handle, FluentTheme.IsDark);
             UpdateAccentColorButton();
             UpdatePointerGlowColorButton();
         }

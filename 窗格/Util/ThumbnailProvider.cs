@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -197,6 +199,30 @@ namespace 窗格.Util
                 state.pending = false;
         }
 
+        /// <summary>
+        /// Scales the image to fit a square while preserving its aspect ratio, padding the rest
+        /// with transparency. <c>GetThumbnailImage</c> would stretch it to the square instead.
+        /// </summary>
+        private static Bitmap CreateSquareThumbnail(Image source, int size)
+        {
+            var square = new Bitmap(size, size, PixelFormat.Format32bppArgb);
+            using (var graphics = Graphics.FromImage(square))
+            {
+                graphics.Clear(Color.Transparent);
+                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                graphics.SmoothingMode = SmoothingMode.HighQuality;
+
+                var scale = Math.Min((float)size / source.Width, (float)size / source.Height);
+                var width = Math.Max(1, (int)Math.Round(source.Width * scale));
+                var height = Math.Max(1, (int)Math.Round(source.Height * scale));
+                graphics.DrawImage(source,
+                    new Rectangle((size - width) / 2, (size - height) / 2, width, height));
+            }
+
+            return square;
+        }
+
         private void GenerateThumbnailAsync(string path, int size, ThumbnailState state)
         {
             var semaphoreAcquired = false;
@@ -208,7 +234,7 @@ namespace 窗格.Util
                 {
                     using (var img = Image.FromStream(ms))
                     {
-                        using (var thumb = (Bitmap)img.GetThumbnailImage(size, size, () => false, IntPtr.Zero))
+                        using (var thumb = CreateSquareThumbnail(img, size))
                         {
                             var iconHandle = thumb.GetHicon();
                             Icon icon;
