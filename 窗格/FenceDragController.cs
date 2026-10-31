@@ -117,7 +117,7 @@ namespace 窗格
             {
                 e.Effect = DragDropEffects.Move;
                 InsertionIndex = GetDropInsertionIndex(owner.PointToClient(new Point(e.X, e.Y)));
-                owner.Invalidate();
+                owner.InvalidateContent();
             }
             else if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
@@ -162,14 +162,14 @@ namespace 窗格
             finally
             {
                 ClearInsertionMarker();
-                owner.Invalidate();
+                owner.InvalidateContent();
             }
         }
 
         public void ClearInsertionMarker()
         {
             InsertionIndex = -1;
-            owner.Invalidate();
+            owner.InvalidateContent();
         }
 
         private int GetDropInsertionIndex(Point point)
@@ -213,7 +213,7 @@ namespace 窗格
                 owner.ShowItemSaveError(ex);
             }
 
-            owner.Invalidate();
+            owner.InvalidateContent();
         }
     }
 }

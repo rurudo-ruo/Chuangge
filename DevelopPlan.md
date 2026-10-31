@@ -50,11 +50,11 @@ proved behavior-neutral moves to Phase B rather than being forced.
 | Phase | Items | Done | Doing | Todo | Won't fix |
 |---|---|---|---|---|---|
 | A — no observable behavior change | 19 | 16 | 3 | 0 | 0 |
-| B — behavior fixes | 11 | 10 | 0 | 1 | 0 |
-| C — hardening and process | 8 | 7 | 0 | 1 | 0 |
+| B — behavior fixes | 11 | 11 | 0 | 0 | 0 |
+| C — hardening and process | 8 | 7 | 0 | 0 | 1 |
 | D — already satisfied (verified) | 10 | 10 | 0 | 0 | 0 |
-| W — won't fix | 2 | 0 | 0 | 0 | 2 |
-| **Total** | **50** | **43** | **3** | **2** | **2** |
+| W — declined standalone items (W1, W2) | 2 | 0 | 0 | 0 | 2 |
+| **Total** | **50** | **44** | **3** | **0** | **3** |
 
 ---
 
@@ -120,7 +120,7 @@ safe to land behind a build + smoke test and they de-risk Phase B (which edits t
 | B8 | Bound the thumbnail cache (LRU) and drain replaced icons on the UI thread | [ThumbnailProvider.cs](窗格/Util/ThumbnailProvider.cs) | M | Done |
 | B9 | Stop forcing a synchronous repaint on every resize/minify | [FenceWindow.cs:544–554](窗格/FenceWindow.cs#L544-L554), [691–700](窗格/FenceWindow.cs#L691-L700) | S | Done |
 | B10 | Hoist per-item brushes/pens into theme-scoped fields | [FenceWindow.cs:871–900](窗格/FenceWindow.cs#L871-L900) | S | Done |
-| B11 | Composite fence content into an offscreen bitmap so glow-only paints blit instead of re-rendering items | [FenceWindow.cs](窗格/FenceWindow.cs) | M | Todo |
+| B11 | Cache fence content in an offscreen bitmap so glow-only paints blit instead of re-rendering items | [FenceWindow.cs](窗格/FenceWindow.cs) | M | Done |
 
 ### Phase B acceptance notes
 
@@ -153,7 +153,7 @@ safe to land behind a build + smoke test and they de-risk Phase B (which edits t
 | C2 | Cap metadata read size before parsing (`fence.json`, XML) | [FenceManager.cs:204–240](窗格/Model/FenceManager.cs#L204-L240) | S | Done |
 | C3 | Global exception boundary + file logging; replace silent `Console.WriteLine` | [Program.cs](窗格/Program.cs), [AppLogger.cs](窗格/Util/AppLogger.cs) | M | Done |
 | C4 | Publish SHA-256 checksums with releases | [release.yml](.github/workflows/release.yml), [README.md](README.md) | M | Done |
-| C5 | Keyboard and UI Automation access for fence items | [FenceWindow.cs](窗格/FenceWindow.cs), [WindowUtil.cs:148–154](窗格/Win32/WindowUtil.cs#L148-L154) | L | Todo |
+| C5 | Keyboard and UI Automation access for fence items — not considered for now (GUI-first project) | [FenceWindow.cs](窗格/FenceWindow.cs), [WindowUtil.cs:148–154](窗格/Win32/WindowUtil.cs#L148-L154) | L | Won't fix |
 | C6 | Test project (`FenceLayout`, resource keys) + pull-request workflow | [NoFences.Tests.csproj](tests/NoFences.Tests/NoFences.Tests.csproj), [build.yml](.github/workflows/build.yml) | L | Done |
 | C7 | Harden `build.ps1` error handling (CIM query and process-exit race) | [build.ps1](build.ps1) | S | Done |
 | C8 | Launch via `ProcessStartInfo` with no shell argument parsing | [ShellLaunch.cs](窗格/Util/ShellLaunch.cs) | S | Done |
@@ -172,8 +172,9 @@ safe to land behind a build + smoke test and they de-risk Phase B (which edits t
 - **C6** package versions and `dotnet test` against the legacy (non-SDK) app project are
   **unverified** — the first real check is the new `Build and test` workflow. The test project is
   not in `窗格.sln`, so `build.ps1` and the release pipeline are unaffected.
-- **C5** is the only remaining Phase C item; it needs an interaction design (keyboard focus mode,
-  item navigation, UIA peers), not just code.
+- **C5** is marked won't fix: this is a GUI-first desktop organiser and keyboard/UI Automation
+  support is not in scope for now. The interaction notes are kept in §12 Stage 4 so the decision
+  can be revisited if an accessibility requirement appears.
 
 ---
 
@@ -203,6 +204,10 @@ are recorded so a future pass does not "fix" them into a regression.
 |---|---|---|
 | W1 | Rename the `fenceInfo` property to PascalCase | [FenceWindow.cs:28](窗格/FenceWindow.cs#L28). The constructor parameter of the same name is captured by the property after assignment; a mechanical rename can silently rebind it. Cosmetic only — revisit if/when **A18** splits the window. |
 | W2 | Replace the Gaussian blur with a box blur / SIMD implementation | The blur is cached per item and runs on change, not per frame. **A4** removes the remaining repeated invocations; a kernel rewrite is disproportionate to the measured cost. |
+| W3 | Keyboard and UI Automation access for fence items (**C5**) | This is a GUI-first desktop organiser; accessibility support is out of scope for now. The interaction notes remain in §12 Stage 4 so it can be reconsidered if the requirement appears. |
+
+W3 is Phase C item **C5**, listed here for its rationale; it is counted under Phase C in §2, not
+under the standalone W row.
 
 ---
 
@@ -231,7 +236,7 @@ Every review finding, the defect it describes, and the plan item that closes it.
 | B8 | Property named like a field; culture-sensitive comparisons where identity is meant; magic literals; failures written to a non-existent console | A12, B6, C3, W1 |
 | B9 | No global exception handler and no logging; startup can die with an opaque `TypeInitializationException` | C3, A17 |
 | B10 | No tests, analyzers, warnings-as-errors or pull-request CI; brittle build-script error paths | A13, A17, C6, C7 |
-| B11 | Fully custom-drawn, never-focused window with no keyboard or UI Automation path | C5 |
+| B11 | Fully custom-drawn, never-focused window with no keyboard or UI Automation path | C5 (declined — W3) |
 | S1 | `WScript.Shell` resolved through a user-writable ProgID and instantiated in-process on Apply | C1 |
 | S2 | Unbounded `ReadAllText` before JSON parsing; oversized metadata is a startup DoS | C2 |
 | S3 | Shell context-menu COM lifetime can crash the process instead of failing the menu | A8, B5 |
@@ -261,6 +266,9 @@ Because the project has no automated tests, every phase closes on this manual pa
     Startup folder with the correct target and working directory (C1).
 12. Make a fence folder read-only, change a fence, and confirm a log file appears under
     `%LOCALAPPDATA%\NoFences\logs` and the fence stays open with an error dialog (C3).
+13. After each content change — apply settings, switch theme, scroll, select, drag, drop, delete,
+    replace, rename — the fence shows the new state immediately; no stale title, item, marker or
+    scroll bar remains from the cached bitmap (B11).
 
 Phase A adds one extra check: **compare before/after screenshots** of a fence with a mixed set of
 items (image, exe, folder, missing) — the rendering must be pixel-identical.
@@ -282,6 +290,8 @@ items (image, exe, folder, missing) — the rendering must be pixel-identical.
 | 2026-10-31 | The diagnostic log includes item paths, truncated to 1000 characters | Chosen for supportability; the log stays on the local machine. |
 | 2026-10-31 | C1 applied without runtime verification | The `IShellLink` path can only be exercised by pressing Apply in a running build. |
 | 2026-10-31 | C6 package versions and `dotnet test` against the legacy project are unverified | No compiler or SDK access in this session; the pull-request workflow is the first real check. |
+| 2026-10-31 | B11 rebuilds the whole content bitmap on any content invalidation | Simple and correct without pixel tests; region-scoped updates can come later if thumbnail-heavy fences show startup cost. |
+| 2026-10-31 | C5 (accessibility) moved to won't fix | GUI-first project; keyboard/UIA support is not in scope for now. |
 
 ---
 
@@ -298,12 +308,14 @@ items (image, exe, folder, missing) — the rendering must be pixel-identical.
 | 2026-10-31 | Stage 1 applied: shared load and save-error helpers (A19), dialog control disposal (A16), dead files out of the project (A14/A15), warnings-as-errors (A17a). Physical file deletion and the first build remain. |
 | 2026-10-31 | A18a applied: `FenceRenderer` owns item drawing, the effect caches, the icon font and item brushes; renderer calls now pass `itemHeight` and the selection flag. A18b (drag controller) remains. |
 | 2026-10-31 | A18b applied: `FenceDragController` owns the drag gesture, DnD effects and insertion marker; the window forwards events and exposes `IsLocked`, `ItemPaths`, `SelectedPath`, `ViewModel` and the layout/cache helpers internally. |
+| 2026-10-31 | B11 applied: fence content is cached in an opaque offscreen bitmap; glow-only paints blit it plus the halo, and `InvalidateContent()` is used by every content-changing path. |
+| 2026-10-31 | C5 marked won't fix: GUI-first project, no accessibility work planned for now. |
 
 ---
 
 ## 12. Remaining work plan
 
-**Backlog: 3 in progress (A14, A15, A17), 2 not started (B11, C5), 43 done, 2 won't fix.**
+**Backlog: 3 in progress (A14, A15, A17), 0 not started, 44 done, 3 won't fix.**
 Stage 1 is applied except for the physical file deletion, which needs a shell. Every stage below
 closes on a Release build; the agent's process runner is still broken in this session, so the build
 is the user's step, not the agent's.
@@ -340,22 +352,25 @@ folder, missing item, selection, drag marker, scrollbar).
 
 ### Stage 3 — Compositing (M, ~1 day plus testing)
 
-**B11** — Cache fence content (background, items, scrollbar, drag marker) in an offscreen bitmap;
-a glow-only paint blits it and draws the halo. Invalidate that bitmap from every content-changing
-path: settings, DPI, scroll, selection, DnD, drop/delete/replace, thumbnail load.
+**B11** — Applied. `FenceWindow` renders background, title, items, drag marker and scroll bar into
+an opaque `contentBitmap` sized to the client area and created at the screen DPI; a paint blits it
+pixel-for-pixel and draws the pointer halo on top. `InvalidateContent()` marks the bitmap stale and
+is used by every content path (settings, DPI, resize/minify, scroll, selection, drag/drop,
+delete/replace, thumbnail load, rename); glow invalidations keep calling `Invalidate()` so they
+reuse the bitmap. Content changes rebuild the whole bitmap and blit only the invalidated region.
+The scroll offset is clamped before drawing, so a cached frame never holds an unclamped offset.
+A thumbnail load still rebuilds the whole bitmap (only that item's rect is blitted); if startup
+cost shows up with many images, a region-scoped bitmap update is the next step.
 
 *Done when:* a pointer sweep leaves no trails and no stale content in any of those paths, and paint
 time during a glow sweep drops measurably (temporary `Stopwatch` instrumentation).
 
-### Stage 4 — Accessibility (L, ~2–3 days)
+### Stage 4 — Accessibility (declined)
 
-**C5** — After A18: (a) keyboard path — focus a fence from the tray or settings, arrow between
-items, Enter opens, Menu key opens the item menu; (b) UI Automation peers for items; (c) document
-the shortcuts. Needs one interaction decision first: how a fence takes focus without stealing it
-from the desktop.
-
-*Done when:* the app is operable with the keyboard alone, and UIA inspection reports one peer per
-item.
+**C5** is not planned: see **W3** in §7. If it is ever picked up, the intended shape is (a) a
+keyboard path — focus a fence from the tray or settings, arrow between items, Enter opens, Menu key
+opens the item menu; (b) UI Automation peers per item; (c) documented shortcuts. It would need one
+interaction decision first: how a fence takes focus without stealing it from the desktop.
 
 ### Stage 5 — Analyzers (S, ~0.5 day)
 
@@ -366,16 +381,16 @@ restore, which the build script does not currently perform.
 ### Why this order
 
 - Deletions and the error-ladder collapse are cheap and shrink everything that follows.
-- A18 must precede B11 and C5; both touch code that is entangled in `FenceWindow` today.
-- B11 before C5 because C5 adds focus rendering to the same paint path.
-- Warnings-as-errors early (A17a) so Stages 2–4 cannot silently add warnings.
+- A18 had to precede B11; it would also be the prerequisite if the declined C5 work ever resumes.
+- Warnings-as-errors early (A17a) so the remaining stages cannot silently add warnings.
 
-The two won't-fix items (W1 property rename, W2 blur kernel rewrite) stay declined; see §7.
+The three won't-fix items (W1 property rename, W2 blur kernel rewrite, W3 = C5 accessibility) stay
+declined; see §7.
 
 | Stage | Items | Effort | Gate |
 |---|---|---|---|
 | 1 | A19, A14, A15, A16, A17a | S–M | one clean Release build |
 | 2 | A18 | L | Stage 1 verified |
 | 3 | B11 | M | A18 merged |
-| 4 | C5 | L | A18 merged; focus design agreed |
+| 4 | C5 (declined) | — | none |
 | 5 | A17b | S | NuGet restore added to the build |

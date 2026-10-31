@@ -76,6 +76,8 @@ namespace 窗格
         private long wheelDeltaRemainder;
         private Bitmap pointerGlowBitmap;
         private int pointerGlowRadius;
+        private Bitmap contentBitmap;
+        private bool contentValid;
 
         private void ReloadFonts()
         {
@@ -241,7 +243,7 @@ namespace 窗格
             }
 
             UpdatePointerGlowBitmap();
-            Invalidate();
+            InvalidateContent();
         }
 
         protected override void OnFormClosed(FormClosedEventArgs e)
@@ -252,6 +254,8 @@ namespace 窗格
             debouncedMove.Dispose();
             debouncedResize.Dispose();
             renderer.Dispose();
+            contentBitmap?.Dispose();
+            contentBitmap = null;
             pointerGlowBitmap?.Dispose();
             pointerGlowBitmap = null;
             titleFont?.Dispose();
@@ -331,6 +335,7 @@ namespace 窗格
 
             ForgetEntry(removedItem);
             hoveringItem = null;
+            InvalidateContent();
             Refresh();
         }
 
@@ -394,7 +399,7 @@ namespace 窗格
                 Save();
             });
 
-            Invalidate();
+            InvalidateContent();
         }
 
         private void FenceWindow_MouseMove(object sender, MouseEventArgs e)
@@ -498,7 +503,7 @@ namespace 窗格
                 isMinified = true;
                 prevHeight = Height;
                 Height = titleHeight;
-                Invalidate();
+                InvalidateContent();
             }
         }
 
@@ -545,8 +550,67 @@ namespace 窗格
         private void FenceWindow_Paint(object sender, PaintEventArgs e)
         {
             var graphics = e.Graphics;
-            graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
-            graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+            EnsureContentBitmap(graphics);
+            if (!contentValid)
+            {
+                using (var contentGraphics = Graphics.FromImage(contentBitmap))
+                {
+                    contentGraphics.Clear(BackColor);
+                    contentGraphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+                    contentGraphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                    RenderContent(contentGraphics);
+                }
+
+                contentValid = true;
+            }
+
+            graphics.DrawImage(contentBitmap,
+                new Rectangle(0, 0, contentBitmap.Width, contentBitmap.Height),
+                0, 0, contentBitmap.Width, contentBitmap.Height,
+                GraphicsUnit.Pixel);
+
+            // Keep the halo out of the title area, as it was when items and glow shared a clip.
+            graphics.SetClip(new Rectangle(0, titleHeight, Width, Math.Max(0, Height - titleHeight)),
+                CombineMode.Intersect);
+
+            if (GlobalFenceSettings.GlowEffectsEnabled && pointerInside)
+                DrawPointerGlow(graphics);
+        }
+
+        /// <summary>
+        /// Ensures the cached content bitmap matches the current client size and screen DPI.
+        /// </summary>
+        private void EnsureContentBitmap(Graphics graphics)
+        {
+            var width = Math.Max(1, ClientSize.Width);
+            var height = Math.Max(1, ClientSize.Height);
+            if (contentBitmap != null && contentBitmap.Width == width && contentBitmap.Height == height)
+                return;
+
+            contentBitmap?.Dispose();
+            contentBitmap = new Bitmap(width, height);
+            contentBitmap.SetResolution(graphics.DpiX, graphics.DpiY);
+            contentValid = false;
+        }
+
+        /// <summary>
+        /// Marks the cached content stale and repaints. Anything that changes what the fence shows
+        /// must use this; the pointer halo only calls <see cref="Form.Invalidate()"/> so a glow
+        /// sweep reuses the bitmap.
+        /// </summary>
+        internal void InvalidateContent()
+        {
+            contentValid = false;
+            Invalidate();
+        }
+
+        /// <summary>
+        /// Draws everything that only changes with the fence content. The pointer halo is drawn
+        /// on top of the cached bitmap, so a glow repaint is a blit rather than a full redraw.
+        /// </summary>
+        private void RenderContent(Graphics graphics)
+        {
             var backgroundAlpha = GlobalFenceSettings.GetOverlayOpacity(92, 174);
             var titleAlpha = GlobalFenceSettings.GetOverlayOpacity(36, 92);
 
@@ -579,6 +643,14 @@ namespace 窗格
             }
 
             var layout = CreateLayout();
+            scrollHeight = layout.GetContentOverflow(fenceInfo.Files.Count, ClientRectangle.Height - titleHeight);
+            var clampedScrollOffset = Math.Max(0, Math.Min(scrollOffset, scrollHeight));
+            if (clampedScrollOffset != scrollOffset)
+            {
+                scrollOffset = clampedScrollOffset;
+                layout = CreateLayout();
+            }
+
             var itemWidth = ContentToDeviceUnits(logicalItemWidth);
             var iconSize = ContentToDeviceUnits(logicalIconSize);
             var textHeight = ContentToDeviceUnits(logicalTextHeight);
@@ -604,15 +676,12 @@ namespace 窗格
             if (drag.InsertionIndex >= 0)
                 DrawDragInsertionMarker(graphics, layout, drag.InsertionIndex);
 
-            scrollHeight = layout.GetContentOverflow(fenceInfo.Files.Count, ClientRectangle.Height - titleHeight);
-
             // Scroll bars
             if (scrollHeight > 0)
             {
                 var contentHeight = Math.Max(0, Height - titleHeight);
                 if (contentHeight > 0)
                 {
-                    scrollOffset = Math.Max(0, Math.Min(scrollOffset, scrollHeight));
                     var totalContentHeight = (long)contentHeight + scrollHeight;
                     var scrollbarHeight = Math.Min(contentHeight,
                         Math.Max(LogicalToDeviceUnits(12), (int)((long)contentHeight * contentHeight / totalContentHeight)));
@@ -630,10 +699,6 @@ namespace 窗格
                     }
                 }
             }
-
-            if (GlobalFenceSettings.GlowEffectsEnabled && pointerInside)
-                DrawPointerGlow(graphics);
-
         }
 
         private void DrawDragInsertionMarker(Graphics graphics, FenceLayout layout, int insertionIndex)
@@ -719,7 +784,7 @@ namespace 窗格
                 entryCache[pair.Key] = pair.Value;
 
             if (changed)
-                Invalidate();
+                InvalidateContent();
         }
 
         private void InvalidateItem(string path)
@@ -734,6 +799,7 @@ namespace 窗格
 
             var padding = Math.Max(ContentToDeviceUnits(GlobalFenceSettings.IconGlowRadius),
                 ContentToDeviceUnits(4));
+            contentValid = false;
             Invalidate(Rectangle.Inflate(CreateLayout().GetItemBounds(itemIndex), padding, padding));
         }
 
@@ -845,6 +911,7 @@ namespace 窗格
                     try
                     {
                         viewModel.Rename(dialog.NewName);
+                        InvalidateContent();
                         Refresh();
                     }
                     catch (Exception ex) when (FenceViewModel.IsSaveError(ex))
@@ -915,7 +982,7 @@ namespace 窗格
                 }
             }
 
-            Invalidate();
+            InvalidateContent();
             return true;
         }
 
@@ -997,7 +1064,7 @@ namespace 窗格
             var hoveredItemIndex = GetItemIndexAt(PointToClient(MousePosition));
             hoveringItem = hoveredItemIndex >= 0 ? fenceInfo.Files[hoveredItemIndex] : null;
 
-            Invalidate(new Rectangle(0, titleHeight, Width, Math.Max(0, Height - titleHeight)));
+            InvalidateContent();
         }
 
         private void ThumbnailProvider_IconThumbnailLoaded(object sender,
@@ -1068,7 +1135,7 @@ namespace 窗格
             if (wasMinified && !GlobalFenceSettings.HideTitleArea)
                 Height = titleHeight;
 
-            Invalidate();
+            InvalidateContent();
         }
 
         private void LocateMissingFileItem_Click(object sender, EventArgs e)
@@ -1146,7 +1213,7 @@ namespace 窗格
             hoveringItem = replacementPath;
             ForgetEntry(previousPath);
             RefreshEntryCache();
-            Invalidate();
+            InvalidateContent();
         }
 
         private static string GetExistingParentDirectory(string path)
