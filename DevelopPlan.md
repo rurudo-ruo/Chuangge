@@ -5,7 +5,7 @@ that review appears below with a status, a phase and a verification expectation.
 
 - **Created:** 2026-10-31
 - **Source:** code review of the tree at `DevelopPlan.md` creation time (`Program.cs`, `FenceWindow`, `FenceLayout`, `FenceViewModel`, `FenceManager`, `ThumbnailProvider`, `Win32/*`, settings/theme, `build.ps1`, `release.yml`).
-- **Build status:** **not verified.** The review session had no working shell (`pwsh` and the ripgrep providers failed), so no change recorded here has been compiled or run. Run `.\build.ps1` before merging Phase A.
+- **Build status:** **not verified (2026-10-31).** The agent still cannot spawn processes (`Windows Job runner exited with code 1`) and the ripgrep provider is unavailable, so none of the changes recorded here have been compiled or run. `.\build.ps1` on a normal machine is the first gate for every stage in §12.
 
 ---
 
@@ -114,7 +114,7 @@ safe to land behind a build + smoke test and they de-risk Phase B (which edits t
 | B4 | Correct the legacy JSON fallback so `\t`, `\n`, `\b`, `\f`, `\r` paths are not silently mangled | [FenceManager.cs:204–246](窗格/Model/FenceManager.cs#L204-L246) | M | Done |
 | B5 | Harden cross-thread marshalling (check-then-`BeginInvoke` race could terminate the process) | [FenceWindow.cs:1396–1436](窗格/FenceWindow.cs#L1396-L1436) | S | Done |
 | B6 | Case-insensitive `ReplaceItem` lookup (was ordinal and silently missed) | [FenceViewModel.cs:186–190](窗格/FenceViewModel.cs#L186-L190) | S | Done |
-| B7 | Window-message correctness: `WM_NCCALCSIZE` return, `WM_NCMOUSELEAVE` removal, `SC_MAXIMIZE` mask | [FenceWindow.cs:201–219](窗格/FenceWindow.cs#L201-L219) | S | Done |
+| B7 | Window-message correctness: suppress every `WM_NCCALCSIZE` pass, remove `WM_NCMOUSELEAVE`, mask `SC_MAXIMIZE` | [FenceWindow.cs:206–224](窗格/FenceWindow.cs#L206-L224) | S | Done |
 | B8 | Bound the thumbnail cache (LRU) and drain replaced icons on the UI thread | [ThumbnailProvider.cs](窗格/Util/ThumbnailProvider.cs) | M | Done |
 | B9 | Stop forcing a synchronous repaint on every resize/minify | [FenceWindow.cs:544–554](窗格/FenceWindow.cs#L544-L554), [691–700](窗格/FenceWindow.cs#L691-L700) | S | Done |
 | B10 | Hoist per-item brushes/pens into theme-scoped fields | [FenceWindow.cs:871–900](窗格/FenceWindow.cs#L871-L900) | S | Done |
@@ -136,6 +136,10 @@ safe to land behind a build + smoke test and they de-risk Phase B (which edits t
   drains it on the UI thread from the thumbnail-loaded handler. Pending entries are never evicted.
 - **B11** needs pixel-level regression testing, which this session cannot run; it is therefore
   not started.
+- **B7** needed a correction after it shipped. The first version let the `wParam == 0`
+  `WM_NCCALCSIZE` pass reach the default handler, so Windows reserved and painted a native
+  caption containing the window text over every fence. Every pass is suppressed again — that is
+  what the pre-review code did unconditionally.
 
 ---
 
@@ -287,3 +291,83 @@ items (image, exe, folder, missing) — the rendering must be pixel-identical.
 | 2026-10-31 | Phase A implemented (A1–A13). Build and smoke test still outstanding — see §9. |
 | 2026-10-31 | Phase B implemented (B1–B10). B11 added for offscreen compositing. Build and smoke test still outstanding — see §9. |
 | 2026-10-31 | Phase C implemented (C1–C4, C6–C8); C5 remains. Test project and CI added but never executed here. |
+| 2026-10-31 | Fixed: fence names could surface through the window text while titles were hidden. The window text is now the product name; the fence name is drawn and edited from the model only. |
+| 2026-10-31 | Fixed regression from B7: suppressing only one `WM_NCCALCSIZE` pass let Windows paint a native caption over every fence. All passes are suppressed again. |
+
+---
+
+## 12. Remaining work plan
+
+**Backlog: 8 undone (A14–A19, B11, C5), 40 done, 2 won't fix.** Every stage below closes on a
+Release build; the agent's process runner is still broken in this session, so the build is the
+user's step, not the agent's.
+
+### Stage 1 — Cleanup batch (S–M, one build verifies all)
+
+Order matters: A14 removes the second of A16's two sites, and deletions shrink the surface that
+the later refactors touch.
+
+1. **A19** — Collapse the three identical load ladders in `FenceManager.LoadFences` into one
+   `TryLoad(Func<FenceInfo>)` helper, and share the save-error predicate between `FenceWindow`
+   and `AdvancedSettingsForm`. No behavior change.
+2. **A14** — Delete `HeightDialog` (`.cs`, `.Designer.cs`, three `.resx`, csproj entries). Confirm
+   with Find Usages first; title size now lives in `FenceTitleSettingsControl`.
+3. **A15** — Delete `Util\Extensions.cs` and its csproj entry; `Move`/`Shrink` have no callers.
+4. **A16** — Dispose designer controls before `Controls.Clear()` in `EditDialog` (the
+   `HeightDialog` half disappears with A14).
+5. **A17a** — Enable `<TreatWarningsAsErrors>` at the current warning level, with no new packages
+   and no restore step, and fix what it reports.
+
+*Done when:* Release build clean with warnings-as-errors; both dialogs open and close normally; no
+orphan files; this document updated.
+
+### Stage 2 — Window structure (L, ~1–2 days)
+
+**A18** — Extract `FenceRenderer` (paint plus the item render cache) and `FenceDragController`
+(thumbnail drag, drop index, drag effects) from `FenceWindow`. No behavior change: same pixels,
+same hit targets, same persistence. Highest-risk item, and the prerequisite for B11 and C5.
+
+*Done when:* the §9 checklist passes, plus before/after screenshots of a mixed fence (image, exe,
+folder, missing item, selection, drag marker, scrollbar).
+
+### Stage 3 — Compositing (M, ~1 day plus testing)
+
+**B11** — Cache fence content (background, items, scrollbar, drag marker) in an offscreen bitmap;
+a glow-only paint blits it and draws the halo. Invalidate that bitmap from every content-changing
+path: settings, DPI, scroll, selection, DnD, drop/delete/replace, thumbnail load.
+
+*Done when:* a pointer sweep leaves no trails and no stale content in any of those paths, and paint
+time during a glow sweep drops measurably (temporary `Stopwatch` instrumentation).
+
+### Stage 4 — Accessibility (L, ~2–3 days)
+
+**C5** — After A18: (a) keyboard path — focus a fence from the tray or settings, arrow between
+items, Enter opens, Menu key opens the item menu; (b) UI Automation peers for items; (c) document
+the shortcuts. Needs one interaction decision first: how a fence takes focus without stealing it
+from the desktop.
+
+*Done when:* the app is operable with the keyboard alone, and UIA inspection reports one peer per
+item.
+
+### Stage 5 — Analyzers (S, ~0.5 day)
+
+**A17b** — Add `Microsoft.CodeAnalysis.NetAnalyzers` as a `PackageReference`, add `-restore` to
+`build.ps1`, and fix the first round of findings. Kept separate from A17a because it needs NuGet
+restore, which the build script does not currently perform.
+
+### Why this order
+
+- Deletions and the error-ladder collapse are cheap and shrink everything that follows.
+- A18 must precede B11 and C5; both touch code that is entangled in `FenceWindow` today.
+- B11 before C5 because C5 adds focus rendering to the same paint path.
+- Warnings-as-errors early (A17a) so Stages 2–4 cannot silently add warnings.
+
+The two won't-fix items (W1 property rename, W2 blur kernel rewrite) stay declined; see §7.
+
+| Stage | Items | Effort | Gate |
+|---|---|---|---|
+| 1 | A19, A14, A15, A16, A17a | S–M | one clean Release build |
+| 2 | A18 | L | Stage 1 verified |
+| 3 | B11 | M | A18 merged |
+| 4 | C5 | L | A18 merged; focus design agreed |
+| 5 | A17b | S | NuGet restore added to the build |

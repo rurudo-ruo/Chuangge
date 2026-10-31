@@ -1,5 +1,20 @@
-$solutionPath = Join-Path $PSScriptRoot '窗格.sln'
-$exePath = Join-Path $PSScriptRoot '窗格\bin\Release\窗格.exe'
+<#
+.SYNOPSIS
+Builds the Release version. Use -Run to launch it for manual testing.
+
+.EXAMPLE
+.\build.ps1 -Run
+
+.EXAMPLE
+.\build.cmd -Run
+#>
+param(
+    [switch]$Run
+)
+
+$appName = [string][char]0x7A97 + [string][char]0x683C
+$solutionPath = Join-Path $PSScriptRoot "$appName.sln"
+$exePath = Join-Path $PSScriptRoot "$appName\bin\Release\$appName.exe"
 
 $targetingPackPaths = @()
 if (${env:ProgramFiles(x86)}) {
@@ -34,7 +49,7 @@ if (-not ($targetingPackPaths | Where-Object { Test-Path $_ })) {
 $normalizedExePath = [System.IO.Path]::GetFullPath($exePath)
 
 try {
-    $runningProcesses = @(Get-CimInstance Win32_Process -Filter "Name = '窗格.exe'" -ErrorAction Stop)
+    $runningProcesses = @(Get-CimInstance Win32_Process -Filter "Name = '$appName.exe'" -ErrorAction Stop)
 }
 catch {
     Write-Error "Could not enumerate running processes: $($_.Exception.Message)"
@@ -110,7 +125,7 @@ public static class NoFencesBuildShutdown
     do {
         Start-Sleep -Milliseconds 250
         try {
-            $remainingProcesses = @(Get-CimInstance Win32_Process -Filter "Name = '窗格.exe'" -ErrorAction Stop |
+            $remainingProcesses = @(Get-CimInstance Win32_Process -Filter "Name = '$appName.exe'" -ErrorAction Stop |
                 Where-Object {
                     (-not [string]::IsNullOrWhiteSpace($_.ExecutablePath)) -and
                     ([string]::Equals([System.IO.Path]::GetFullPath($_.ExecutablePath),
@@ -141,3 +156,8 @@ if (-not (Test-Path $exePath)) {
 }
 
 Write-Host "Build succeeded: $exePath"
+
+if ($Run) {
+    Start-Process -FilePath $exePath -ErrorAction Stop
+    Write-Host "Started $appName for manual testing."
+}

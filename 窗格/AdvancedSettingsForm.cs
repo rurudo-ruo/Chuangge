@@ -729,7 +729,7 @@ namespace 窗格
                     || ex is UnauthorizedAccessException
                     || ex is InvalidOperationException)
                 {
-                    errors.AppendLine(fence.Text + ": " + ex.Message);
+                    errors.AppendLine(fence.FenceName + ": " + ex.Message);
                 }
             }
 

@@ -28,6 +28,8 @@ namespace 窗格
         private readonly FenceViewModel viewModel;
         private FenceInfo fenceInfo => viewModel.Info;
 
+        internal string FenceName => fenceInfo.Name;
+
         private Font titleFont;
         private Font iconFont;
         private readonly StringFormat itemTextFormat = new StringFormat
@@ -175,7 +177,9 @@ namespace 窗格
             AllowDrop = true;
 
 
-            Text = fenceInfo.Name;
+            // Deliberately not the fence name: Windows can render the window text in drag
+            // ghosts, switchers and previews even though this window draws its own title.
+            Text = "窗格";
             Location = new Point(fenceInfo.PosX, fenceInfo.PosY);
 
             Width = fenceInfo.Width;
@@ -203,9 +207,11 @@ namespace 窗格
         {
             //Console.WriteLine(m.Msg.ToString("X4"));
 
-            // Remove border. Only the "client area valid" pass is overridden. When wParam is
-            // zero the client rectangle still has to be computed, so let the base class do it.
-            if (m.Msg == WM_NCCALCSIZE && m.WParam != IntPtr.Zero)
+            // Remove the non-client area entirely. Both WM_NCCALCSIZE passes must be
+            // suppressed: the app draws and hit-tests its own title, and letting the
+            // wParam == 0 pass reach the default handler makes Windows reserve a native
+            // caption, which it then paints with the window text over the fence.
+            if (m.Msg == WM_NCCALCSIZE)
             {
                 m.Result = IntPtr.Zero;
                 return;
@@ -776,7 +782,7 @@ namespace 窗格
                 {
                     graphics.FillRectangle(titleBrush, new Rectangle(0, 0, Width, titleHeight));
                     using (var titleTextBrush = new SolidBrush(FluentTheme.Text))
-                    graphics.DrawString(Text, titleFont, titleTextBrush,
+                    graphics.DrawString(fenceInfo.Name, titleFont, titleTextBrush,
                         new RectangleF(LogicalToDeviceUnits(12), 0,
                             Math.Max(0, Width - LogicalToDeviceUnits(24)), titleHeight), titleFormat);
                     using (var dividerPen = new Pen(Color.FromArgb(FluentTheme.IsDark ? 52 : 72, FluentTheme.Text)))
@@ -1229,7 +1235,7 @@ namespace 窗格
 
         private void renameToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            using (var dialog = new EditDialog(Text))
+            using (var dialog = new EditDialog(fenceInfo.Name))
             {
                 if (dialog.ShowDialog(this) == DialogResult.OK)
                 {
@@ -1243,7 +1249,6 @@ namespace 窗格
                     try
                     {
                         viewModel.Rename(dialog.NewName);
-                        Text = dialog.NewName;
                         Refresh();
                     }
                     catch (Exception ex) when (IsFenceSaveError(ex))
