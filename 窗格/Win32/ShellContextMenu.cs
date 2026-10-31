@@ -58,12 +58,6 @@ namespace 窗格.Win32
             }
         }
 
-        protected override void OnHandleDestroyed(EventArgs e)
-        {
-            ReleaseAll();
-            handleCreated = false;
-            base.OnHandleDestroyed(e);
-        }
         #endregion
 
         #region GetContextMenuInterfaces()

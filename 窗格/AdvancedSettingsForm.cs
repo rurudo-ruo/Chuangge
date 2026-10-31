@@ -697,7 +697,7 @@ namespace 窗格
 
         private void OpenFolderButton_Click(object sender, EventArgs e)
         {
-            Process.Start("explorer.exe", FenceManager.Instance.DataDirectory);
+            ShellLaunch.Open(FenceManager.Instance.DataDirectory);
         }
 
         private void ModifyAllButton_Click(object sender, EventArgs e)

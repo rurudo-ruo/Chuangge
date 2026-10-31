@@ -77,6 +77,30 @@ jobs:
             -DestinationPath (Join-Path $releaseDirectory "$appName-$version-windows-x64.zip") `
             -CompressionLevel Optimal
 
+      - name: Write checksums
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $appName = [string][char]0x7A97 + [string][char]0x683C
+          $version = $env:GITHUB_REF_NAME
+          $releaseDirectory = Join-Path $env:GITHUB_WORKSPACE 'release-assets'
+          $assets = @(
+            "$appName-$version.exe"
+            "$appName-$version-windows-x64.zip"
+          )
+
+          $lines = foreach ($asset in $assets) {
+            $path = Join-Path $releaseDirectory $asset
+            if (-not (Test-Path $path)) {
+              throw "Expected release asset was not found: $path"
+            }
+
+            $hash = (Get-FileHash -Path $path -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $asset"
+          }
+
+          Set-Content -Path (Join-Path $releaseDirectory 'SHA256SUMS.txt') -Value $lines -Encoding Ascii
+
       - name: Generate release notes
         shell: powershell
         run: |

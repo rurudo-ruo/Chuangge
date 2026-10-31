@@ -1,6 +1,5 @@
 using System.Drawing;
 using System.Threading.Tasks;
-using System.Diagnostics;
 using System;
 using System.IO;
 using 窗格.Win32;
@@ -61,14 +60,11 @@ namespace 窗格.Model
                 // start asynchronously
                 try
                 {
-                    if (Type == EntryType.File)
-                        Process.Start(Path);
-                    else if (Type == EntryType.Folder)
-                        Process.Start("explorer.exe", Path);
+                    ShellLaunch.Open(Path);
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine($"Failed to start: {e}");
+                    AppLogger.Error("Could not open " + Path, e);
                 }
             });
         }

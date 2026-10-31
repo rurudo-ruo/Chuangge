@@ -18,6 +18,7 @@ namespace 窗格.Model
         private const string BackupDirectoryPattern = "Backup_XML_*";
         private const string BackupFileSuffix = "___fence_metadata";
         private const string TempFileSuffix = ".tmp";
+        private const int MaximumMetadataBytes = 8 * 1024 * 1024;
         private static readonly XmlSerializer Serializer = new XmlSerializer(typeof(FenceInfo));
 
         private readonly string basePath;
@@ -191,6 +192,7 @@ namespace 窗格.Model
 
         private static FenceInfo ReadXmlFence(string path, Guid expectedId)
         {
+            EnsureMetadataSize(path);
             FenceInfo fence;
             using (var reader = new StreamReader(path))
             {
@@ -203,8 +205,9 @@ namespace 窗格.Model
 
         private static FenceInfo ReadJsonFence(string path, Guid expectedId)
         {
+            EnsureMetadataSize(path);
             var json = File.ReadAllText(path);
-            var serializer = new JavaScriptSerializer();
+            var serializer = new JavaScriptSerializer { MaxJsonLength = MaximumMetadataBytes };
             FenceInfo fence = null;
             try
             {
@@ -223,6 +226,14 @@ namespace 窗格.Model
 
             ValidateFence(fence, expectedId);
             return fence;
+        }
+
+        private static void EnsureMetadataSize(string path)
+        {
+            var length = new FileInfo(path).Length;
+            if (length > MaximumMetadataBytes)
+                throw new InvalidOperationException(
+                    "Fence metadata is too large to load: " + length + " bytes.");
         }
 
         private static bool HasControlCharacters(IList<string> files)

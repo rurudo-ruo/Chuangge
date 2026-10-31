@@ -51,10 +51,10 @@ proved behavior-neutral moves to Phase B rather than being forced.
 |---|---|---|---|---|---|
 | A — no observable behavior change | 19 | 13 | 0 | 6 | 0 |
 | B — behavior fixes | 11 | 10 | 0 | 1 | 0 |
-| C — hardening and process | 8 | 0 | 0 | 8 | 0 |
+| C — hardening and process | 8 | 7 | 0 | 1 | 0 |
 | D — already satisfied (verified) | 10 | 10 | 0 | 0 | 0 |
 | W — won't fix | 2 | 0 | 0 | 0 | 2 |
-| **Total** | **50** | **33** | **0** | **15** | **2** |
+| **Total** | **50** | **40** | **0** | **8** | **2** |
 
 ---
 
@@ -143,14 +143,31 @@ safe to land behind a build + smoke test and they de-risk Phase B (which edits t
 
 | ID | Item | Where | Effort | Status |
 |---|---|---|---|---|
-| C1 | Replace late-bound `WScript.Shell` with `IShellLink`/`IPersistFile` | [StartupRegistration.cs:28–46](窗格/Util/StartupRegistration.cs#L28-L46) | M | Todo |
-| C2 | Cap metadata read size before parsing (`fence.json`, XML) | [FenceManager.cs:207–216](窗格/Model/FenceManager.cs#L207-L216) | S | Todo |
-| C3 | Global exception boundary + file logging; replace silent `Console.WriteLine` | [Program.cs:18–63](窗格/Program.cs#L18-L63), [FenceEntry.cs:68–71](窗格/Model/FenceEntry.cs#L68-L71) | M | Todo |
-| C4 | Sign the executable or publish SHA-256 checksums with releases | [release.yml:63–78](.github/workflows/release.yml#L63-L78) | M | Todo |
+| C1 | Startup shortcut via `IShellLink`/`IPersistFile` (no Windows Script Host) | [StartupRegistration.cs](窗格/Util/StartupRegistration.cs), [ShellLink.cs](窗格/Win32/ShellLink.cs) | M | Done |
+| C2 | Cap metadata read size before parsing (`fence.json`, XML) | [FenceManager.cs:204–240](窗格/Model/FenceManager.cs#L204-L240) | S | Done |
+| C3 | Global exception boundary + file logging; replace silent `Console.WriteLine` | [Program.cs](窗格/Program.cs), [AppLogger.cs](窗格/Util/AppLogger.cs) | M | Done |
+| C4 | Publish SHA-256 checksums with releases | [release.yml](.github/workflows/release.yml), [README.md](README.md) | M | Done |
 | C5 | Keyboard and UI Automation access for fence items | [FenceWindow.cs](窗格/FenceWindow.cs), [WindowUtil.cs:148–154](窗格/Win32/WindowUtil.cs#L148-L154) | L | Todo |
-| C6 | Test project (`FenceLayout`, `FenceViewModel` rollback, resx key parity) + PR workflow | [窗格.csproj](窗格/窗格.csproj), `.github/workflows/` | L | Todo |
-| C7 | Harden `build.ps1` error handling (CIM query and process-exit race) | [build.ps1:31](build.ps1#L31), [99–103](build.ps1#L99-L103) | S | Todo |
-| C8 | Launch hardening: `ProcessStartInfo` with explicit quoting for explorer | [FenceEntry.cs:63–67](窗格/Model/FenceEntry.cs#L63-L67), [FenceWindow.cs:1315](窗格/FenceWindow.cs#L1315) | S | Todo |
+| C6 | Test project (`FenceLayout`, resource keys) + pull-request workflow | [NoFences.Tests.csproj](tests/NoFences.Tests/NoFences.Tests.csproj), [build.yml](.github/workflows/build.yml) | L | Done |
+| C7 | Harden `build.ps1` error handling (CIM query and process-exit race) | [build.ps1](build.ps1) | S | Done |
+| C8 | Launch via `ProcessStartInfo` with no shell argument parsing | [ShellLaunch.cs](窗格/Util/ShellLaunch.cs) | S | Done |
+
+### Phase C acceptance notes
+
+- **C1** removes the `WScript.Shell` ProgID from the trust path, but the interop can only be
+  exercised by pressing **Apply** with the startup option in a running build. Check the created
+  `.lnk` target and working directory after the first run.
+- **C3** logs exceptions, save failures, startup load counts and skipped paths to
+  `%LOCALAPPDATA%\NoFences\logs`. Item paths are included, truncated to 1000 characters. Unhandled
+  UI exceptions are logged, reported with the log folder, and the app exits through the normal
+  close path so fences save.
+- **C4** publishes `SHA256SUMS.txt`; the release step uploads `release-assets/*`, so no extra
+  wiring was needed.
+- **C6** package versions and `dotnet test` against the legacy (non-SDK) app project are
+  **unverified** — the first real check is the new `Build and test` workflow. The test project is
+  not in `窗格.sln`, so `build.ps1` and the release pipeline are unaffected.
+- **C5** is the only remaining Phase C item; it needs an interaction design (keyboard focus mode,
+  item navigation, UIA peers), not just code.
 
 ---
 
@@ -234,6 +251,10 @@ Because the project has no automated tests, every phase closes on this manual pa
    dragging an item still repaints immediately.
 10. Delete a referenced file while the fence is open, leave and re-enter it: the item turns amber
     (B1 refresh path). Add the file back and re-enter: it renders normally again.
+11. Toggle "Start NoFences when I sign in", press **Apply**, and confirm the shortcut exists in the
+    Startup folder with the correct target and working directory (C1).
+12. Make a fence folder read-only, change a fence, and confirm a log file appears under
+    `%LOCALAPPDATA%\NoFences\logs` and the fence stays open with an error dialog (C3).
 
 Phase A adds one extra check: **compare before/after screenshots** of a fence with a mixed set of
 items (image, exe, folder, missing) — the rendering must be pixel-identical.
@@ -251,6 +272,10 @@ items (image, exe, folder, missing) — the rendering must be pixel-identical.
 | 2026-10-31 | B1 refreshes on pointer entry, not on a timer | A timer would block the UI thread on an offline share every interval; entry/refresh-on-change keeps the steady-state paint path free of I/O. |
 | 2026-10-31 | B2 throttles instead of compositing | Offscreen compositing needs pixel-level regression testing that this session cannot run; recorded as B11. |
 | 2026-10-31 | B8 keeps the retirement list but drains it on the UI thread | Preserves the original cross-thread safety while bounding retained icon handles. |
+| 2026-10-31 | C4 is satisfied with published SHA-256 checksums, not code signing | No signing certificate is available; checksums give verifiable integrity without a signing identity. |
+| 2026-10-31 | The diagnostic log includes item paths, truncated to 1000 characters | Chosen for supportability; the log stays on the local machine. |
+| 2026-10-31 | C1 applied without runtime verification | The `IShellLink` path can only be exercised by pressing Apply in a running build. |
+| 2026-10-31 | C6 package versions and `dotnet test` against the legacy project are unverified | No compiler or SDK access in this session; the pull-request workflow is the first real check. |
 
 ---
 
@@ -261,3 +286,4 @@ items (image, exe, folder, missing) — the rendering must be pixel-identical.
 | 2026-10-31 | Plan created. |
 | 2026-10-31 | Phase A implemented (A1–A13). Build and smoke test still outstanding — see §9. |
 | 2026-10-31 | Phase B implemented (B1–B10). B11 added for offscreen compositing. Build and smoke test still outstanding — see §9. |
+| 2026-10-31 | Phase C implemented (C1–C4, C6–C8); C5 remains. Test project and CI added but never executed here. |

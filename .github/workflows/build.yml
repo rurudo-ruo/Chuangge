@@ -1,0 +1,26 @@
+name: Build and test
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Build Release
+        shell: powershell
+        run: .\build.ps1
+
+      - name: Run tests
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet test 'tests\NoFences.Tests\NoFences.Tests.csproj' --configuration Release --nologo

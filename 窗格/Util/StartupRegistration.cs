@@ -1,8 +1,8 @@
 using System;
 using System.IO;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using 窗格.Win32;
 
 namespace 窗格.Util
 {
@@ -25,37 +25,24 @@ namespace 窗格.Util
                 return;
             }
 
-            var shellType = Type.GetTypeFromProgID("WScript.Shell");
-            if (shellType == null)
-                throw new InvalidOperationException(UiText.Get("Windows Script Host is unavailable, so the startup shortcut could not be created."));
-
-            object shell = null;
-            object shortcut = null;
+            object link = null;
             try
             {
-                shell = Activator.CreateInstance(shellType);
-                shortcut = shellType.InvokeMember("CreateShortcut", BindingFlags.InvokeMethod,
-                    null, shell, new object[] { shortcutPath });
-                var shortcutType = shortcut.GetType();
-                shortcutType.InvokeMember("TargetPath", BindingFlags.SetProperty,
-                    null, shortcut, new object[] { Application.ExecutablePath });
-                shortcutType.InvokeMember("WorkingDirectory", BindingFlags.SetProperty,
-                    null, shortcut, new object[] { Application.StartupPath });
-                shortcutType.InvokeMember("Description", BindingFlags.SetProperty,
-                    null, shortcut, new object[] { UiText.Get("Start NoFences when you sign in") });
-                shortcutType.InvokeMember("Save", BindingFlags.InvokeMethod, null, shortcut, null);
+                link = new ShellLink();
+                var shellLink = (IShellLinkW)link;
+                shellLink.SetPath(Application.ExecutablePath);
+                shellLink.SetWorkingDirectory(Application.StartupPath);
+                shellLink.SetDescription(UiText.Get("Start NoFences when I sign in"));
+                ((IPersistFile)link).Save(shortcutPath, true);
             }
-            catch (TargetInvocationException ex)
+            catch (COMException ex)
             {
-                throw new InvalidOperationException(UiText.Get("Windows could not update the startup shortcut."),
-                    ex.InnerException ?? ex);
+                throw new InvalidOperationException(UiText.Get("Windows could not update the startup shortcut."), ex);
             }
             finally
             {
-                if (shortcut != null && Marshal.IsComObject(shortcut))
-                    Marshal.FinalReleaseComObject(shortcut);
-                if (shell != null && Marshal.IsComObject(shell))
-                    Marshal.FinalReleaseComObject(shell);
+                if (link != null && Marshal.IsComObject(link))
+                    Marshal.FinalReleaseComObject(link);
             }
         }
 

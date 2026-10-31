@@ -10,7 +10,8 @@
 - `FenceViewModel` owns fence-item and setting mutations, including rollback when a save fails. `FenceLayout` holds the shared item-positioning, drop-target, overflow, and fit-size calculations used by the window.
 - `FenceWindow` handles drawing and interaction. Move and resize persistence is debounced while the window is active, with the latest geometry saved synchronously before closing.
 - `AdvancedSettingsForm` composes settings sections from dedicated controls in `SettingsSectionControls.cs`; `SettingsSectionControl` provides their shared card presentation.
-- Shell context-menu interop is grouped under `Win32`, including its supporting hook and exception types.
+- Shell context-menu and shortcut interop is grouped under `Win32`, including the `IShellLink`/`IPersistFile` definitions used to create the startup shortcut without Windows Script Host.
+- Diagnostics go through `Util\AppLogger.cs`, which keeps seven days of rolling logs in `%LOCALAPPDATA%\NoFences\logs`. Unhandled exceptions are caught at the `Program` boundary so a fence can still save before the app closes.
 
 The project uses an explicit source-file list in `窗格\窗格.csproj`, so new `.cs` files must be added there. No automated test project is currently configured. For changes to persistence, layout, or settings, validate with the Release build and manually verify loading existing layouts, adding/removing/reordering items, moving items between fences, resizing/moving and closing fences, and applying settings.
 
@@ -18,6 +19,7 @@ The project uses an explicit source-file list in `窗格\窗格.csproj`, so new 
 
 - Windows
 - Visual Studio 2022 Build Tools (or Visual Studio) with the **MSBuild** component
+- The **.NET SDK**, used only by `dotnet test` (building and running the app needs MSBuild, not the SDK).
 - The **.NET Framework 4.8 targeting pack**. In Visual Studio Installer, select it under **Individual components**. Alternatively, install the [.NET Framework 4.8 Developer Pack](https://aka.ms/msbuild/developerpacks).
 
 ## Build
@@ -36,9 +38,17 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1
 
 The Release executable is created at `窗格\bin\Release\窗格.exe`. The target computer needs the **.NET Framework 4.8 runtime**, which is separate from the targeting pack used to build the application.
 
+Run the unit tests with:
+
+```powershell
+dotnet test tests\NoFences.Tests\NoFences.Tests.csproj
+```
+
+The test project covers fence layout geometry and resource-key consistency. It needs the .NET SDK in addition to MSBuild; the app itself does not. The tests are also run by the `Build and test` workflow on pull requests.
+
 ## GitHub releases
 
-Pushing a tag matching `v*` starts `.github/workflows/release.yml`. It uses `actions/checkout@v5` (Node.js 24) and discovers MSBuild through Visual Studio's `vswhere.exe`. The workflow constructs the Unicode app name from code points in PowerShell so Windows PowerShell does not corrupt the solution or asset paths. It builds the Release configuration and attaches two assets: an EXE-only download and a ZIP containing only the app executable and Microsoft's .NET Framework 4.8 web installer. The workflow checks the downloaded installer's Authenticode signature and requires a valid Microsoft Corporation signer. Release notes list first-parent commit subjects since the previous reachable tag, with English and Simplified Chinese text, links to each commit, and a full comparison. Maintain translations in `.github/release-notes-zh-CN.json`, keyed by the exact English commit subject; unmapped subjects are marked for translation and reported as workflow warnings. Chinese note text is loaded from the UTF-8 JSON file instead of being embedded in the inline PowerShell script, to avoid Windows PowerShell source-encoding issues. The web installer downloads runtime components from Microsoft and requires internet access; it is not an offline runtime bundle.
+Pushing a tag matching `v*` starts `.github/workflows/release.yml`. It uses `actions/checkout@v5` (Node.js 24) and discovers MSBuild through Visual Studio's `vswhere.exe`. The workflow constructs the Unicode app name from code points in PowerShell so Windows PowerShell does not corrupt the solution or asset paths. It builds the Release configuration and attaches two assets: an EXE-only download and a ZIP containing only the app executable and Microsoft's .NET Framework 4.8 web installer. The workflow checks the downloaded installer's Authenticode signature and requires a valid Microsoft Corporation signer. Release notes list first-parent commit subjects since the previous reachable tag, with English and Simplified Chinese text, links to each commit, and a full comparison. Maintain translations in `.github/release-notes-zh-CN.json`, keyed by the exact English commit subject; unmapped subjects are marked for translation and reported as workflow warnings. Chinese note text is loaded from the UTF-8 JSON file instead of being embedded in the inline PowerShell script, to avoid Windows PowerShell source-encoding issues. The web installer downloads runtime components from Microsoft and requires internet access; it is not an offline runtime bundle. The workflow also writes `SHA256SUMS.txt` with the SHA-256 of both assets.
 
 ## Localization
 

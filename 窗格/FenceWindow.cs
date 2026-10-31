@@ -337,6 +337,7 @@ namespace 窗格
             catch (Exception ex) when (IsFenceSaveError(ex))
             {
                 e.Cancel = true;
+                AppLogger.Error("Could not save fence before closing", ex);
                 MessageBox.Show(this, UiText.Get("Could not save this fence before closing. The fence was kept open to protect its saved data.")
                     + Environment.NewLine + ex.Message, UiText.Get("Fence could not be saved"),
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -357,11 +358,13 @@ namespace 窗格
                 }
                 catch (IOException ex)
                 {
+                    AppLogger.Error("Could not remove saved fence data", ex);
                     MessageBox.Show(this, UiText.Get("Could not remove all saved copies of this fence. It may reappear when 窗格 starts again.") +
                         Environment.NewLine + ex.Message, UiText.Get("Fence could not be removed"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 catch (UnauthorizedAccessException ex)
                 {
+                    AppLogger.Error("Could not remove saved fence data", ex);
                     MessageBox.Show(this, UiText.Get("Could not remove all saved copies of this fence. It may reappear when 窗格 starts again.") +
                         Environment.NewLine + ex.Message, UiText.Get("Fence could not be removed"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
@@ -521,11 +524,13 @@ namespace 窗格
 
         private void ShowItemSaveError(Exception ex)
         {
+            AppLogger.Error("Could not save fence item", ex);
             MessageBox.Show(this, ex.Message, UiText.Get("Could not save fence item"), MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
         private void ShowDeferredSaveError(Exception ex)
         {
+            AppLogger.Error("Could not save fence", ex);
             MessageBox.Show(this, ex.Message, UiText.Get("Fence could not be saved"),
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
@@ -1498,7 +1503,7 @@ namespace 窗格
 
             try
             {
-                Process.Start(new ProcessStartInfo("explorer.exe", "\"" + directory + "\"") { UseShellExecute = true });
+                ShellLaunch.Open(directory);
             }
             catch (Win32Exception ex)
             {

@@ -82,4 +82,6 @@
   <data name="Windows Script Host is unavailable, so the startup shortcut could not be created."><value>Windows Script Host 不可用，无法创建启动快捷方式。</value></data>
   <data name="Windows could not update the startup shortcut."><value>Windows 无法更新启动快捷方式。</value></data>
   <data name="The current user's Windows Startup folder could not be located."><value>无法找到当前用户的 Windows“启动”文件夹。</value></data>
+  <data name="窗格 encountered an error"><value>窗格遇到错误</value></data>
+  <data name="窗格 encountered an unexpected error and will close so its data can be saved. Details were written to this folder:"><value>窗格遇到意外错误，即将关闭以便保存数据。详细信息已写入此文件夹：</value></data>
 </root>

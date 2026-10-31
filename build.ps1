@@ -1,9 +1,13 @@
-﻿$solutionPath = Join-Path $PSScriptRoot '窗格.sln'
+$solutionPath = Join-Path $PSScriptRoot '窗格.sln'
 $exePath = Join-Path $PSScriptRoot '窗格\bin\Release\窗格.exe'
-$targetingPackPaths = @(
-    (Join-Path ${env:ProgramFiles(x86)} 'Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8'),
-    (Join-Path $env:ProgramFiles 'Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8')
-)
+
+$targetingPackPaths = @()
+if (${env:ProgramFiles(x86)}) {
+    $targetingPackPaths += Join-Path ${env:ProgramFiles(x86)} 'Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8'
+}
+if ($env:ProgramFiles) {
+    $targetingPackPaths += Join-Path $env:ProgramFiles 'Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8'
+}
 
 $msbuildCommand = Get-Command msbuild -ErrorAction SilentlyContinue
 $msbuildPath = if ($msbuildCommand) { $msbuildCommand.Source }
@@ -28,7 +32,15 @@ if (-not ($targetingPackPaths | Where-Object { Test-Path $_ })) {
 }
 
 $normalizedExePath = [System.IO.Path]::GetFullPath($exePath)
-$runningProcesses = @(Get-CimInstance Win32_Process -Filter "Name = '窗格.exe'" -ErrorAction Stop)
+
+try {
+    $runningProcesses = @(Get-CimInstance Win32_Process -Filter "Name = '窗格.exe'" -ErrorAction Stop)
+}
+catch {
+    Write-Error "Could not enumerate running processes: $($_.Exception.Message)"
+    exit 1
+}
+
 $matchingProcesses = @()
 foreach ($process in $runningProcesses) {
     if ([string]::IsNullOrWhiteSpace($process.ExecutablePath)) {
@@ -94,13 +106,21 @@ public static class NoFencesBuildShutdown
     }
 
     $shutdownDeadline = [DateTime]::UtcNow.AddSeconds(20)
+    $remainingProcesses = @()
     do {
         Start-Sleep -Milliseconds 250
-        $remainingProcesses = @(Get-CimInstance Win32_Process -Filter "Name = '窗格.exe'" -ErrorAction Stop |
-            Where-Object {
-                [string]::Equals([System.IO.Path]::GetFullPath($_.ExecutablePath),
-                    $normalizedExePath, [System.StringComparison]::OrdinalIgnoreCase)
-            })
+        try {
+            $remainingProcesses = @(Get-CimInstance Win32_Process -Filter "Name = '窗格.exe'" -ErrorAction Stop |
+                Where-Object {
+                    (-not [string]::IsNullOrWhiteSpace($_.ExecutablePath)) -and
+                    ([string]::Equals([System.IO.Path]::GetFullPath($_.ExecutablePath),
+                        $normalizedExePath, [System.StringComparison]::OrdinalIgnoreCase))
+                })
+        }
+        catch {
+            Write-Error "Could not check whether NoFences closed: $($_.Exception.Message)"
+            exit 1
+        }
     } while ($remainingProcesses.Count -gt 0 -and [DateTime]::UtcNow -lt $shutdownDeadline)
 
     if ($remainingProcesses.Count -gt 0) {

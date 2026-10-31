@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -21,6 +21,9 @@ using System.Runtime.InteropServices;
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
 [assembly: Guid("9b7ec27e-0066-4455-987c-6dc88c4bee54")]
+
+// The test project exercises internal layout and localization helpers directly.
+[assembly: InternalsVisibleTo("NoFences.Tests")]
 
 // Version information for an assembly consists of the following four values:
 //
