@@ -52,38 +52,15 @@ namespace 窗格.Model
                     continue;
 
                 var metaFile = Path.Combine(dir, MetaFileName);
+                if (!File.Exists(metaFile))
+                {
+                    RecordFailure(failedPaths, folderId, metaFile);
+                    continue;
+                }
+
                 FenceInfo fence;
-
-                try
-                {
-                    if (!File.Exists(metaFile))
-                    {
-                        RecordFailure(failedPaths, folderId, metaFile);
-                        continue;
-                    }
-
-                    fence = ReadXmlFence(metaFile, folderId);
-                }
-                catch (IOException)
-                {
-                    RecordFailure(failedPaths, folderId, metaFile);
+                if (!TryReadFence(() => ReadXmlFence(metaFile, folderId), folderId, metaFile, failedPaths, out fence))
                     continue;
-                }
-                catch (UnauthorizedAccessException)
-                {
-                    RecordFailure(failedPaths, folderId, metaFile);
-                    continue;
-                }
-                catch (InvalidOperationException)
-                {
-                    RecordFailure(failedPaths, folderId, metaFile);
-                    continue;
-                }
-                catch (XmlException)
-                {
-                    RecordFailure(failedPaths, folderId, metaFile);
-                    continue;
-                }
 
                 result.Fences.Add(fence);
                 loadedIds.Add(folderId);
@@ -100,30 +77,8 @@ namespace 窗格.Model
 
                     var jsonFile = Path.Combine(dir, JsonFenceFileName);
                     FenceInfo fence;
-                    try
-                    {
-                        fence = ReadJsonFence(jsonFile, folderId);
-                    }
-                    catch (IOException)
-                    {
-                        RecordFailure(failedPaths, folderId, jsonFile);
+                    if (!TryReadFence(() => ReadJsonFence(jsonFile, folderId), folderId, jsonFile, failedPaths, out fence))
                         continue;
-                    }
-                    catch (UnauthorizedAccessException)
-                    {
-                        RecordFailure(failedPaths, folderId, jsonFile);
-                        continue;
-                    }
-                    catch (InvalidOperationException)
-                    {
-                        RecordFailure(failedPaths, folderId, jsonFile);
-                        continue;
-                    }
-                    catch (ArgumentException)
-                    {
-                        RecordFailure(failedPaths, folderId, jsonFile);
-                        continue;
-                    }
 
                     result.Fences.Add(fence);
                     loadedIds.Add(folderId);
@@ -150,30 +105,8 @@ namespace 窗格.Model
                         continue;
 
                     FenceInfo fence;
-                    try
-                    {
-                        fence = ReadXmlFence(backupFile, fenceId);
-                    }
-                    catch (IOException)
-                    {
-                        RecordFailure(failedPaths, fenceId, backupFile);
+                    if (!TryReadFence(() => ReadXmlFence(backupFile, fenceId), fenceId, backupFile, failedPaths, out fence))
                         continue;
-                    }
-                    catch (UnauthorizedAccessException)
-                    {
-                        RecordFailure(failedPaths, fenceId, backupFile);
-                        continue;
-                    }
-                    catch (InvalidOperationException)
-                    {
-                        RecordFailure(failedPaths, fenceId, backupFile);
-                        continue;
-                    }
-                    catch (XmlException)
-                    {
-                        RecordFailure(failedPaths, fenceId, backupFile);
-                        continue;
-                    }
 
                     result.Fences.Add(fence);
                     loadedIds.Add(fenceId);
@@ -188,6 +121,26 @@ namespace 窗格.Model
             }
 
             return result;
+        }
+
+        private static bool TryReadFence(Func<FenceInfo> read, Guid fenceId, string path,
+            IDictionary<Guid, List<string>> failures, out FenceInfo fence)
+        {
+            try
+            {
+                fence = read();
+                return true;
+            }
+            catch (Exception ex) when (ex is IOException
+                || ex is UnauthorizedAccessException
+                || ex is InvalidOperationException
+                || ex is ArgumentException
+                || ex is XmlException)
+            {
+                RecordFailure(failures, fenceId, path);
+                fence = null;
+                return false;
+            }
         }
 
         private static FenceInfo ReadXmlFence(string path, Guid expectedId)

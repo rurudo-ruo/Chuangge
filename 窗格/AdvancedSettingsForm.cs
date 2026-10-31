@@ -725,9 +725,7 @@ namespace 窗格
                     if (fence.FitBoundsToCurrentLayout())
                         modifiedCount++;
                 }
-                catch (Exception ex) when (ex is System.IO.IOException
-                    || ex is UnauthorizedAccessException
-                    || ex is InvalidOperationException)
+                catch (Exception ex) when (FenceViewModel.IsSaveError(ex))
                 {
                     errors.AppendLine(fence.FenceName + ": " + ex.Message);
                 }

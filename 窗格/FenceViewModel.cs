@@ -24,6 +24,17 @@ namespace 窗格
             fenceManager.UpdateFence(Info);
         }
 
+        /// <summary>
+        /// The failures a fence save can present to the user: I/O, permissions, or invalid
+        /// metadata. Shared so every save path reports them the same way.
+        /// </summary>
+        internal static bool IsSaveError(Exception exception)
+        {
+            return exception is IOException
+                || exception is UnauthorizedAccessException
+                || exception is InvalidOperationException;
+        }
+
         public void Rename(string name)
         {
             var previousName = Info.Name;

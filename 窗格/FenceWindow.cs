@@ -340,7 +340,7 @@ namespace 窗格
                 fenceInfo.Height = isMinified ? prevHeight : Height;
                 Save();
             }
-            catch (Exception ex) when (IsFenceSaveError(ex))
+            catch (Exception ex) when (FenceViewModel.IsSaveError(ex))
             {
                 e.Cancel = true;
                 AppLogger.Error("Could not save fence before closing", ex);
@@ -388,7 +388,7 @@ namespace 窗格
             {
                 viewModel.RemoveItemAt(itemIndex);
             }
-            catch (Exception ex) when (IsFenceSaveError(ex))
+            catch (Exception ex) when (FenceViewModel.IsSaveError(ex))
             {
                 ShowItemSaveError(ex);
                 return;
@@ -477,7 +477,7 @@ namespace 窗格
                     viewModel.AddExistingItems(dropped);
                     RefreshEntryCache();
                 }
-                catch (Exception ex) when (IsFenceSaveError(ex))
+                catch (Exception ex) when (FenceViewModel.IsSaveError(ex))
                 {
                     MessageBox.Show(this, ex.Message, UiText.Get("Could not save fence items"),
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -520,7 +520,7 @@ namespace 窗格
                 }
                 RemoveRenderCacheEntry(dragData.Path);
             }
-            catch (Exception ex) when (IsFenceSaveError(ex))
+            catch (Exception ex) when (FenceViewModel.IsSaveError(ex))
             {
                 ShowItemSaveError(ex);
             }
@@ -539,11 +539,6 @@ namespace 窗格
             AppLogger.Error("Could not save fence", ex);
             MessageBox.Show(this, ex.Message, UiText.Get("Fence could not be saved"),
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
-        }
-
-        private static bool IsFenceSaveError(Exception ex)
-        {
-            return ex is IOException || ex is UnauthorizedAccessException || ex is InvalidOperationException;
         }
 
         private void ClearDragInsertionMarker()
@@ -729,7 +724,7 @@ namespace 窗格
             {
                 viewModel.SetCanMinify(minifyToolStripMenuItem.Checked);
             }
-            catch (Exception ex) when (IsFenceSaveError(ex))
+            catch (Exception ex) when (FenceViewModel.IsSaveError(ex))
             {
                 minifyToolStripMenuItem.Checked = fenceInfo.CanMinify;
                 ShowItemSaveError(ex);
@@ -1251,7 +1246,7 @@ namespace 窗格
                         viewModel.Rename(dialog.NewName);
                         Refresh();
                     }
-                    catch (Exception ex) when (IsFenceSaveError(ex))
+                    catch (Exception ex) when (FenceViewModel.IsSaveError(ex))
                     {
                         MessageBox.Show(this, ex.Message, UiText.Get("Fence could not be saved"),
                             MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -1339,7 +1334,7 @@ namespace 窗格
             {
                 viewModel.SetLocked(lockedToolStripMenuItem.Checked);
             }
-            catch (Exception ex) when (IsFenceSaveError(ex))
+            catch (Exception ex) when (FenceViewModel.IsSaveError(ex))
             {
                 lockedToolStripMenuItem.Checked = fenceInfo.Locked;
                 ShowItemSaveError(ex);
@@ -1539,7 +1534,7 @@ namespace 窗格
                 if (!viewModel.ReplaceItem(hoveringItem, replacementPath))
                     return;
             }
-            catch (Exception ex) when (IsFenceSaveError(ex))
+            catch (Exception ex) when (FenceViewModel.IsSaveError(ex))
             {
                 MessageBox.Show(this, ex.Message, UiText.Get("Could not save fence item"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;

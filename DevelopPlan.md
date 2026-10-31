@@ -49,12 +49,12 @@ proved behavior-neutral moves to Phase B rather than being forced.
 
 | Phase | Items | Done | Doing | Todo | Won't fix |
 |---|---|---|---|---|---|
-| A — no observable behavior change | 19 | 13 | 0 | 6 | 0 |
+| A — no observable behavior change | 19 | 15 | 3 | 1 | 0 |
 | B — behavior fixes | 11 | 10 | 0 | 1 | 0 |
 | C — hardening and process | 8 | 7 | 0 | 1 | 0 |
 | D — already satisfied (verified) | 10 | 10 | 0 | 0 | 0 |
 | W — won't fix | 2 | 0 | 0 | 0 | 2 |
-| **Total** | **50** | **40** | **0** | **8** | **2** |
+| **Total** | **50** | **42** | **3** | **3** | **2** |
 
 ---
 
@@ -78,12 +78,12 @@ safe to land behind a build + smoke test and they de-risk Phase B (which edits t
 | A11 | 64-bit-correct window-long access for `GWL_HWNDPARENT` (values preserved) | [DesktopUtil.cs:13–43](窗格/Win32/DesktopUtil.cs#L13-L43) | S | Done |
 | A12 | Remove unused hook scaffolding and `catch { throw; }` noise | [ShellContextMenuSupport.cs:45–109](窗格/Win32/ShellContextMenuSupport.cs#L45-L109) | S | Done |
 | A13 | Add `.editorconfig` documenting the existing conventions | new file | S | Done |
-| A14 | Delete `HeightDialog` (no callers found; title size lives in Advanced settings) | [HeightDialog.cs](窗格/HeightDialog.cs) + `.Designer.cs` + 3 `.resx` + csproj entries | M | Todo |
-| A15 | Delete `Extensions.cs` (no callers for `Move`/`Shrink`) | [Extensions.cs](窗格/Util/Extensions.cs) + csproj entry | S | Todo |
-| A16 | Dispose designer controls before `Controls.Clear()` in dialogs | [EditDialog.cs:60](窗格/EditDialog.cs#L60), [HeightDialog.cs:88](窗格/HeightDialog.cs#L88) | S | Todo |
-| A17 | Add analyzers and `<TreatWarningsAsErrors>` | [窗格.csproj](窗格/窗格.csproj) | M | Todo |
+| A14 | Remove `HeightDialog`: csproj entries are gone; the five files still need deleting | [HeightDialog.cs](窗格/HeightDialog.cs) | M | Doing |
+| A15 | Remove `Extensions.cs`: csproj entry is gone; the file still needs deleting | [Extensions.cs](窗格/Util/Extensions.cs) | S | Doing |
+| A16 | Dispose designer controls before `Controls.Clear()` in `EditDialog` | [EditDialog.cs:60](窗格/EditDialog.cs#L60) | S | Done |
+| A17 | Analyzers and `<TreatWarningsAsErrors>`. Warnings-as-errors is on; the analyzer package is deferred to §12 Stage 5 | [窗格.csproj](窗格/窗格.csproj) | M | Doing |
 | A18 | Extract `FenceRenderer` / `FenceDragController` from the 1.3k-line window | [FenceWindow.cs](窗格/FenceWindow.cs) | L | Todo |
-| A19 | Collapse duplicated save-error ladders into shared helpers | [FenceManager.cs:58–177](窗格/Model/FenceManager.cs#L58-L177), [FenceWindow.cs:494–497](窗格/FenceWindow.cs#L494-L497) | S | Todo |
+| A19 | Collapse duplicated save-error ladders into shared helpers | [FenceManager.cs:48–126](窗格/Model/FenceManager.cs#L48-L126), [FenceViewModel.cs:22–34](窗格/FenceViewModel.cs#L22-L34) | S | Done |
 
 ### Phase A notes
 
@@ -99,8 +99,10 @@ safe to land behind a build + smoke test and they de-risk Phase B (which edits t
 - **A8** changes only resource lifetime; the menu's normal rendering path is untouched.
 - **A11** preserves every style value; only the width of the handle used for `GWL_HWNDPARENT`
   changes.
-- **A14/A15** are deferred rather than done because deleting files and csproj entries is the one
-  class of change that cannot be validated by inspection alone, and this session had no compiler.
+- **A14/A15** are out of the project file, but the six files are still on disk: this session has no
+  delete tool. Remove them with
+  `git rm 窗格/HeightDialog.cs 窗格/HeightDialog.Designer.cs 窗格/HeightDialog.cs.resx 窗格/HeightDialog.resx 窗格/HeightDialog.zh-CN.resx 窗格/Util/Extensions.cs`.
+  Until then the build ignores them, so they cannot break compilation.
 
 ---
 
@@ -293,14 +295,16 @@ items (image, exe, folder, missing) — the rendering must be pixel-identical.
 | 2026-10-31 | Phase C implemented (C1–C4, C6–C8); C5 remains. Test project and CI added but never executed here. |
 | 2026-10-31 | Fixed: fence names could surface through the window text while titles were hidden. The window text is now the product name; the fence name is drawn and edited from the model only. |
 | 2026-10-31 | Fixed regression from B7: suppressing only one `WM_NCCALCSIZE` pass let Windows paint a native caption over every fence. All passes are suppressed again. |
+| 2026-10-31 | Stage 1 applied: shared load and save-error helpers (A19), dialog control disposal (A16), dead files out of the project (A14/A15), warnings-as-errors (A17a). Physical file deletion and the first build remain. |
 
 ---
 
 ## 12. Remaining work plan
 
-**Backlog: 8 undone (A14–A19, B11, C5), 40 done, 2 won't fix.** Every stage below closes on a
-Release build; the agent's process runner is still broken in this session, so the build is the
-user's step, not the agent's.
+**Backlog: 3 in progress (A14, A15, A17), 3 not started (A18, B11, C5), 42 done, 2 won't fix.**
+Stage 1 is applied except for the physical file deletion, which needs a shell. Every stage below
+closes on a Release build; the agent's process runner is still broken in this session, so the build
+is the user's step, not the agent's.
 
 ### Stage 1 — Cleanup batch (S–M, one build verifies all)
 

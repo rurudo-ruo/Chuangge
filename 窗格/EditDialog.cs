@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -56,6 +56,15 @@ namespace 窗格
             layout.Controls.Add(lbName, 0, 0);
             layout.Controls.Add(tbName, 0, 1);
             layout.Controls.Add(actions, 0, 2);
+
+            // Every designer control has been re-parented into the new layout, so the form's
+            // collection is empty today. Dispose defensively so a control added to the designer
+            // later cannot be silently orphaned by Controls.Clear().
+            var remainingControls = new List<Control>(Controls.Count);
+            foreach (Control control in Controls)
+                remainingControls.Add(control);
+            foreach (var control in remainingControls)
+                control.Dispose();
 
             Controls.Clear();
             Controls.Add(layout);
