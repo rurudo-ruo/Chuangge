@@ -27,6 +27,8 @@
   <data name="Pointer highlight size"><value>指针高亮大小</value></data>
   <data name="Icon glow intensity"><value>图标光效强度</value></data>
   <data name="Icon glow spread"><value>图标光效范围</value></data>
+  <data name="Glass lighting"><value>玻璃光照</value></data>
+  <data name="Glass texture"><value>玻璃纹理</value></data>
   <data name="Fence content size"><value>分区内容大小</value></data>
   <data name="Scales thumbnails, labels, and spacing independently of Windows display scaling. Existing fence dimensions stay unchanged; use Modify all to resize them."><value>独立于 Windows 显示缩放调整缩略图、标签和间距的大小。现有分区尺寸不会改变；使用“全部调整”可调整分区大小。</value></data>
   <data name="Content scale"><value>内容缩放</value></data>

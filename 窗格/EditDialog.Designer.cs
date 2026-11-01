@@ -1,4 +1,4 @@
-﻿namespace 窗格
+namespace 窗格
 {
     partial class EditDialog
     {
@@ -31,8 +31,8 @@
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(EditDialog));
             this.lbName = new System.Windows.Forms.Label();
             this.tbName = new System.Windows.Forms.TextBox();
-            this.btnOk = new System.Windows.Forms.Button();
-            this.btnCancel = new System.Windows.Forms.Button();
+            this.btnOk = new 窗格.GlassButton();
+            this.btnCancel = new 窗格.GlassButton();
             this.SuspendLayout();
             // 
             // lbName

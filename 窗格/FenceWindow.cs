@@ -104,8 +104,10 @@ namespace 窗格
             debouncedMove = new DebouncedAction(TimeSpan.FromMilliseconds(500), ShowDeferredSaveError);
             debouncedResize = new DebouncedAction(TimeSpan.FromMilliseconds(500), ShowDeferredSaveError);
             InitializeComponent();
-            appContextMenu.RenderMode = ToolStripRenderMode.System;
+            appContextMenu.RenderMode = ToolStripRenderMode.Professional;
+            appContextMenu.Renderer = new FluentMenuRenderer();
             appContextMenu.Font = FluentTheme.BodyFont;
+            appContextMenu.ForeColor = FluentTheme.Text;
             foreach (ToolStripItem item in appContextMenu.Items)
                 item.Padding = new Padding(10, 5, 10, 5);
             appContextMenu.Opened += AppContextMenu_Opened;
@@ -152,6 +154,7 @@ namespace 窗格
             locateMissingFileItem.Click += LocateMissingFileItem_Click;
             locateMissingFolderItem.Click += LocateMissingFolderItem_Click;
             openMissingParentItem.Click += OpenMissingParentItem_Click;
+            UpdateAppMenuTheme();
             GlobalFenceSettings.Changed += GlobalFenceSettings_Changed;
             UpdatePointerGlowBitmap();
             Minify();
@@ -349,8 +352,16 @@ namespace 窗格
             Refresh();
         }
 
+        private void UpdateAppMenuTheme()
+        {
+            appContextMenu.ForeColor = FluentTheme.Text;
+            foreach (ToolStripItem item in appContextMenu.Items)
+                item.ForeColor = FluentTheme.Text;
+        }
+
         private void contextMenuStrip1_Opening(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            UpdateAppMenuTheme();
             var missingItem = hoveringItem != null && !ItemExists(hoveringItem);
             locateMissingFileItem.Visible = missingItem;
             locateMissingFolderItem.Visible = missingItem;
@@ -613,18 +624,17 @@ namespace 窗格
             {
                 graphics.FillRectangle(backgroundBrush, ClientRectangle);
                 if (!GlobalFenceSettings.HideTitleArea)
-                {
                     graphics.FillRectangle(titleBrush, new Rectangle(0, 0, Width, titleHeight));
+
+                // Glass lighting sits above the blur and both fills, below the title text.
+                GlassPainter.Paint(graphics, ClientRectangle, 0);
+
+                if (!GlobalFenceSettings.HideTitleArea)
+                {
                     using (var titleTextBrush = new SolidBrush(FluentTheme.Text))
                     graphics.DrawString(fenceInfo.Name, titleFont, titleTextBrush,
                         new RectangleF(LogicalToDeviceUnits(12), 0,
                             Math.Max(0, Width - LogicalToDeviceUnits(24)), titleHeight), titleFormat);
-                    using (var dividerPen = new Pen(Color.FromArgb(FluentTheme.IsDark ? 52 : 72, FluentTheme.Text)))
-                    {
-                        var dividerY = titleHeight - 1;
-                        graphics.DrawLine(dividerPen, LogicalToDeviceUnits(12), dividerY,
-                            Math.Max(LogicalToDeviceUnits(12), Width - LogicalToDeviceUnits(12)), dividerY);
-                    }
                 }
             }
 

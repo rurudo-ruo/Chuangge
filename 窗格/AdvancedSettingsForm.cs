@@ -35,9 +35,17 @@ namespace 窗格
         private readonly Label pointerGlowRadiusValue;
         private readonly Label iconGlowIntensityValue;
         private readonly Label iconGlowRadiusValue;
+        private readonly TrackBar glassIntensity;
+        private readonly Label glassIntensityValue;
+        private readonly TrackBar glassTexture;
+        private readonly Label glassTextureValue;
         private Button primaryActionButton;
         private Color customAccentColor;
         private Color pointerGlowColor;
+        private readonly Panel titleBar;
+        private readonly Font titleBarFont;
+        private bool closeHovered;
+        private Rectangle closeBounds;
 
         public static void ShowSettings(IWin32Window owner = null)
         {
@@ -77,34 +85,49 @@ namespace 窗格
             contentScaleSettings = new ContentScaleSettingsControl();
             startupSettings = new StartupSettingsControl();
             StartPosition = FormStartPosition.Manual;
-            FormBorderStyle = FormBorderStyle.Sizable;
+            FormBorderStyle = FormBorderStyle.None;
             MaximizeBox = false;
             MinimizeBox = false;
             ShowInTaskbar = false;
             AutoScaleMode = AutoScaleMode.Font;
             DoubleBuffered = true;
             ClientSize = new Size(820, 860);
-            MinimumSize = new Size(640, 600);
 
-            contentLayout = new TableLayoutPanel
+            titleBarFont = new Font(FluentTheme.BodyFont.FontFamily, 11f, FontStyle.Regular, GraphicsUnit.Point);
+            titleBar = new GlassPanel
+            {
+                Dock = DockStyle.Top,
+                Height = 48,
+                BackColor = FluentTheme.Canvas
+            };
+            titleBar.Paint += TitleBar_Paint;
+            titleBar.MouseDown += TitleBar_MouseDown;
+            titleBar.MouseMove += TitleBar_MouseMove;
+            titleBar.MouseLeave += TitleBar_MouseLeave;
+            titleBar.MouseClick += TitleBar_MouseClick;
+            DropShadow.ApplyShadows(this);
+
+            contentLayout = new GlassTableLayoutPanel
             {
                 AutoSize = false,
                 ColumnCount = 1,
                 Dock = DockStyle.Fill,
-                Padding = new Padding(24),
-                RowCount = 8,
+                Padding = new Padding(28, 8, 28, 28),
+                RowCount = 7,
                 AutoScroll = true
             };
             contentLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             for (var i = 0; i < contentLayout.RowCount; i++)
                 contentLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            contentLayout.Paint += ContentLayout_Paint;
 
-            var pageHeader = new TableLayoutPanel
+            var pageHeader = new GlassTableLayoutPanel
             {
                 AutoSize = true,
                 ColumnCount = 1,
                 Dock = DockStyle.Top,
-                Margin = new Padding(0, 0, 0, 20),
+                Margin = new Padding(0),
+                Padding = new Padding(28, 16, 28, 12),
                 RowCount = 2
             };
             pageHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -128,7 +151,7 @@ namespace 窗格
             pageHeader.Controls.Add(notice, 0, 1);
 
             var themeCard = new SettingsSectionControl();
-            var themeLayout = new TableLayoutPanel
+            var themeLayout = new CardFaceTableLayoutPanel
             {
                 AutoSize = true,
                 ColumnCount = 1,
@@ -153,7 +176,7 @@ namespace 窗格
                 Text = UiText.Get("Use Windows display mode and theme color"),
                 Checked = GlobalFenceSettings.UseSystemTheme
             };
-            var manualThemeLayout = new TableLayoutPanel
+            var manualThemeLayout = new CardFaceTableLayoutPanel
             {
                 AutoSize = true,
                 ColumnCount = 4,
@@ -212,7 +235,7 @@ namespace 窗格
                 Margin = new Padding(0, 16, 0, 8),
                 Text = UiText.Get("Overlay intensity")
             };
-            var darkOverlayRow = new TableLayoutPanel
+            var darkOverlayRow = new CardFaceTableLayoutPanel
             {
                 AutoSize = true,
                 ColumnCount = 3,
@@ -237,7 +260,7 @@ namespace 窗格
             darkOverlayRow.Controls.Add(darkOverlayOpacity, 1, 0);
             darkOverlayRow.Controls.Add(darkOverlayValue, 2, 0);
 
-            var lightOverlayRow = new TableLayoutPanel
+            var lightOverlayRow = new CardFaceTableLayoutPanel
             {
                 AutoSize = true,
                 ColumnCount = 3,
@@ -269,13 +292,13 @@ namespace 窗格
             UpdateManualThemeEnabled();
 
             var glowCard = new SettingsSectionControl();
-            var glowLayout = new TableLayoutPanel
+            var glowLayout = new CardFaceTableLayoutPanel
             {
                 AutoSize = true,
                 ColumnCount = 1,
                 Dock = DockStyle.Top,
                 Margin = new Padding(0),
-                RowCount = 7
+                RowCount = 9
             };
             glowLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             for (var i = 0; i < glowLayout.RowCount; i++)
@@ -294,7 +317,7 @@ namespace 窗格
                 Text = UiText.Get("Enable pointer and icon glow"),
                 Checked = GlobalFenceSettings.GlowEffectsEnabled
             };
-            var pointerColorRow = new TableLayoutPanel
+            var pointerColorRow = new CardFaceTableLayoutPanel
             {
                 AutoSize = true,
                 ColumnCount = 2,
@@ -340,6 +363,14 @@ namespace 窗格
             iconGlowRadiusValue = CreateGlowValueLabel(iconGlowRadius.Value, " px");
             iconGlowRadius.ValueChanged += (sender, e) =>
                 UpdateGlowValue(iconGlowRadius, iconGlowRadiusValue, " px");
+            glassIntensity = CreateGlowSlider(0, 200, GlobalFenceSettings.GlassIntensity, 20);
+            glassIntensityValue = CreateGlowValueLabel(glassIntensity.Value, "%");
+            glassIntensity.ValueChanged += (sender, e) =>
+                UpdateGlowValue(glassIntensity, glassIntensityValue, "%");
+            glassTexture = CreateGlowSlider(0, 100, GlobalFenceSettings.GlassTexture, 10);
+            glassTextureValue = CreateGlowValueLabel(glassTexture.Value, "%");
+            glassTexture.ValueChanged += (sender, e) =>
+                UpdateGlowValue(glassTexture, glassTextureValue, "%");
             glowLayout.Controls.Add(glowHeading, 0, 0);
             glowLayout.Controls.Add(glowEffectsEnabled, 0, 1);
             glowLayout.Controls.Add(pointerColorRow, 0, 2);
@@ -351,6 +382,10 @@ namespace 窗格
                 iconGlowIntensity, iconGlowIntensityValue), 0, 5);
             glowLayout.Controls.Add(CreateGlowSliderRow(UiText.Get("Icon glow spread"),
                 iconGlowRadius, iconGlowRadiusValue), 0, 6);
+            glowLayout.Controls.Add(CreateGlowSliderRow(UiText.Get("Glass lighting"),
+                glassIntensity, glassIntensityValue), 0, 7);
+            glowLayout.Controls.Add(CreateGlowSliderRow(UiText.Get("Glass texture"),
+                glassTexture, glassTextureValue), 0, 8);
             glowCard.Controls.Add(glowLayout);
             glowEffectsEnabled.CheckedChanged += (sender, e) => UpdateGlowControlsEnabled();
             UpdateGlowControlsEnabled();
@@ -358,7 +393,7 @@ namespace 窗格
             var storageCard = new FenceStorageSettingsControl();
             storageCard.OpenFolderRequested += OpenFolderButton_Click;
 
-            var fitActions = new FlowLayoutPanel
+            var fitActions = new GlassFlowLayoutPanel
             {
                 AutoSize = true,
                 BackColor = FluentTheme.Surface,
@@ -377,7 +412,7 @@ namespace 窗格
                 Tag = "FluentSecondaryText",
                 Text = UiText.Get("Fit each fence to its current thumbnail columns and rows:")
             };
-            var modifyAllButton = new Button
+            var modifyAllButton = new GlassButton
             {
                 AutoSize = true,
                 MinimumSize = new Size(112, 34),
@@ -387,14 +422,14 @@ namespace 窗格
             fitActions.Controls.Add(fitDescription);
             fitActions.Controls.Add(modifyAllButton);
 
-            var settingActions = new FlowLayoutPanel
+            var settingActions = new GlassFlowLayoutPanel
             {
                 AutoSize = true,
                 FlowDirection = FlowDirection.RightToLeft,
                 Margin = new Padding(0),
                 WrapContents = false
             };
-            var closeButton = new Button
+            var closeButton = new GlassButton
             {
                 AutoSize = true,
                 MinimumSize = new Size(96, 34),
@@ -402,7 +437,7 @@ namespace 窗格
                 Text = UiText.Get("Close")
             };
             closeButton.Click += (sender, e) => Close();
-            var applyButton = new Button
+            var applyButton = new GlassButton
             {
                 AutoSize = true,
                 MinimumSize = new Size(96, 34),
@@ -419,7 +454,7 @@ namespace 窗格
                         customAccentColor.ToArgb(), darkOverlayOpacity.Value, lightOverlayOpacity.Value,
                         glowEffectsEnabled.Checked, pointerGlowColor.ToArgb(), pointerGlowIntensity.Value,
                         pointerGlowRadius.Value, iconGlowIntensity.Value, iconGlowRadius.Value,
-                        contentScaleSettings.ScalePercent);
+                        contentScaleSettings.ScalePercent, glassIntensity.Value, glassTexture.Value);
                     StartupRegistration.SetEnabled(startupSettings.IsEnabled);
                     FluentTheme.ApplyToForm(this, applyButton);
                     UpdatePointerGlowColorButton();
@@ -453,7 +488,7 @@ namespace 窗格
 
             settingActions.Controls.Add(closeButton);
             settingActions.Controls.Add(applyButton);
-            var footer = new TableLayoutPanel
+            var footer = new GlassTableLayoutPanel
             {
                 AutoSize = true,
                 ColumnCount = 2,
@@ -464,30 +499,40 @@ namespace 窗格
             footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             footer.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            var buildLabel = new Label
+            {
+                AutoSize = true,
+                Margin = new Padding(0, 6, 0, 0),
+                Tag = "FluentSecondaryText",
+                Text = "Build " + System.IO.File.GetLastWriteTime(Application.ExecutablePath).ToString("yyyy-MM-dd HH:mm")
+            };
+            footer.Controls.Add(buildLabel, 0, 0);
             footer.Controls.Add(settingActions, 1, 0);
 
-            contentLayout.Controls.Add(pageHeader, 0, 0);
-            contentLayout.Controls.Add(themeCard, 0, 1);
-            contentLayout.Controls.Add(glowCard, 0, 2);
-            contentLayout.Controls.Add(fenceTitleSettings, 0, 3);
-            contentLayout.Controls.Add(contentScaleSettings, 0, 4);
-            contentLayout.Controls.Add(startupSettings, 0, 5);
-            contentLayout.Controls.Add(storageCard, 0, 6);
-            contentLayout.Controls.Add(fitActions, 0, 7);
+            contentLayout.Controls.Add(themeCard, 0, 0);
+            contentLayout.Controls.Add(glowCard, 0, 1);
+            contentLayout.Controls.Add(fenceTitleSettings, 0, 2);
+            contentLayout.Controls.Add(contentScaleSettings, 0, 3);
+            contentLayout.Controls.Add(startupSettings, 0, 4);
+            contentLayout.Controls.Add(storageCard, 0, 5);
+            contentLayout.Controls.Add(fitActions, 0, 6);
             contentLayout.SizeChanged += ContentLayout_SizeChanged;
-            var settingsLayout = new TableLayoutPanel
+            var settingsLayout = new GlassTableLayoutPanel
             {
                 ColumnCount = 1,
                 Dock = DockStyle.Fill,
                 Margin = new Padding(0),
-                RowCount = 2
+                RowCount = 3
             };
             settingsLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            settingsLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             settingsLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             settingsLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            settingsLayout.Controls.Add(contentLayout, 0, 0);
-            settingsLayout.Controls.Add(footer, 0, 1);
+            settingsLayout.Controls.Add(pageHeader, 0, 0);
+            settingsLayout.Controls.Add(contentLayout, 0, 1);
+            settingsLayout.Controls.Add(footer, 0, 2);
             Controls.Add(settingsLayout);
+            Controls.Add(titleBar);
             fitActions.Tag = "FluentSurface";
             notice.Tag = "FluentSecondaryText";
             FluentTheme.ApplyToForm(this, applyButton);
@@ -505,10 +550,151 @@ namespace 窗格
             CancelButton = closeButton;
         }
 
+        protected override void OnPaintBackground(PaintEventArgs e)
+        {
+            GlassSurface.Paint(e.Graphics, FluentTheme.Canvas);
+        }
+
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
-            WindowUtil.ApplyDarkTitleBar(Handle, FluentTheme.IsDark);
+            WindowUtil.ApplyDwmRoundedCorners(Handle);
+            ApplyWindowBorder();
+            if (titleBar != null)
+            {
+                titleBar.Height = LogicalToDeviceUnits(48);
+                UpdateCloseBounds();
+            }
+        }
+
+        private void ApplyWindowBorder()
+        {
+            WindowUtil.ApplyBorderColor(Handle, FluentTheme.IsDark
+                ? Color.FromArgb(58, 58, 62)
+                : Color.FromArgb(214, 217, 222));
+        }
+
+        protected override void WndProc(ref Message m)
+        {
+            // The window is borderless and draws its own chrome; suppress the non-client area so
+            // the extended frame used for the drop shadow cannot paint a caption strip.
+            if (m.Msg == WindowUtil.WM_NCCALCSIZE)
+            {
+                m.Result = IntPtr.Zero;
+                return;
+            }
+
+            // The custom title bar reports HTCAPTION, so a double-click would otherwise maximize
+            // a window that has no maximize state.
+            if (m.Msg == WindowUtil.WM_SYSCOMMAND && (m.WParam.ToInt32() & 0xFFF0) == WindowUtil.SC_MAXIMIZE)
+                return;
+
+            base.WndProc(ref m);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+                titleBarFont?.Dispose();
+
+            base.Dispose(disposing);
+        }
+
+        private void UpdateCloseBounds()
+        {
+            closeBounds = new Rectangle(titleBar.Width - titleBar.Height, 0, titleBar.Height, titleBar.Height);
+        }
+
+        private void TitleBar_MouseLeave(object sender, EventArgs e)
+        {
+            if (!closeHovered)
+                return;
+
+            closeHovered = false;
+            titleBar.Cursor = Cursors.Default;
+            titleBar.Invalidate();
+        }
+
+        private void TitleBar_MouseMove(object sender, MouseEventArgs e)
+        {
+            var hovered = closeBounds.Contains(e.Location);
+            if (hovered == closeHovered)
+                return;
+
+            closeHovered = hovered;
+            titleBar.Cursor = hovered ? Cursors.Hand : Cursors.Default;
+            titleBar.Invalidate();
+        }
+
+        private void TitleBar_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left || closeBounds.Contains(e.Location))
+                return;
+
+            WindowUtil.DragWindow(Handle);
+        }
+
+        private void TitleBar_MouseClick(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left && closeBounds.Contains(e.Location))
+                Close();
+        }
+
+        private void TitleBar_Paint(object sender, PaintEventArgs e)
+        {
+            UpdateCloseBounds();
+
+            var graphics = e.Graphics;
+            var bounds = new Rectangle(0, 0, titleBar.Width, titleBar.Height);
+            graphics.Clear(FluentTheme.Canvas);
+
+            var textHeight = titleBar.Height - 1;
+            var x = LogicalToDeviceUnits(24);
+            var productSize = TextRenderer.MeasureText("窗格", FluentTheme.BoldBodyFont);
+            TextRenderer.DrawText(graphics, "窗格", FluentTheme.BoldBodyFont,
+                new Rectangle(x, 0, productSize.Width, textHeight), FluentTheme.Text,
+                TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.NoPadding);
+
+            x += productSize.Width + LogicalToDeviceUnits(10);
+            var titleWidth = Math.Max(0, titleBar.Width - x - closeBounds.Width - LogicalToDeviceUnits(8));
+            TextRenderer.DrawText(graphics, UiText.Get("Advanced settings"), titleBarFont,
+                new Rectangle(x, 0, titleWidth, textHeight), FluentTheme.SecondaryText,
+                TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.NoPadding
+                | TextFormatFlags.EndEllipsis);
+
+            if (closeHovered)
+            {
+                using (var hoverBrush = new SolidBrush(Color.FromArgb(72, 196, 43, 28)))
+                    graphics.FillRectangle(hoverBrush, closeBounds);
+            }
+
+            graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            using (var glyphPen = new Pen(FluentTheme.Text, 1.4f))
+            {
+                var centerX = closeBounds.Left + closeBounds.Width / 2;
+                var centerY = closeBounds.Top + closeBounds.Height / 2;
+                var half = LogicalToDeviceUnits(5);
+                graphics.DrawLine(glyphPen, centerX - half, centerY - half, centerX + half, centerY + half);
+                graphics.DrawLine(glyphPen, centerX - half, centerY + half, centerX + half, centerY - half);
+            }
+        }
+
+        private void ContentLayout_Paint(object sender, PaintEventArgs e)
+        {
+            var radius = LogicalToDeviceUnits(14);
+            foreach (Control control in contentLayout.Controls)
+            {
+                var card = control as SettingsSectionControl;
+                if (card == null || !card.Visible)
+                    continue;
+
+                var bounds = card.Bounds;
+                var shadow = new Rectangle(bounds.X, bounds.Y + LogicalToDeviceUnits(2),
+                    bounds.Width, bounds.Height);
+                using (var path = FenceRenderer.CreateRoundedRectangle(shadow, radius))
+                using (var brush = new SolidBrush(Color.FromArgb(18, Color.Black)))
+                    e.Graphics.FillPath(brush, path);
+            }
         }
 
         private void UpdateManualThemeEnabled()
@@ -566,7 +752,7 @@ namespace 窗格
 
         private static TableLayoutPanel CreateGlowSliderRow(string labelText, TrackBar slider, Label valueLabel)
         {
-            var row = new TableLayoutPanel
+            var row = new CardFaceTableLayoutPanel
             {
                 AutoSize = true,
                 ColumnCount = 3,
@@ -640,7 +826,8 @@ namespace 窗格
             }
 
             FluentTheme.ApplyToForm(this, primaryActionButton);
-            WindowUtil.ApplyDarkTitleBar(Handle, FluentTheme.IsDark);
+            ApplyWindowBorder();
+            Invalidate(true);
             UpdateAccentColorButton();
             UpdatePointerGlowColorButton();
         }

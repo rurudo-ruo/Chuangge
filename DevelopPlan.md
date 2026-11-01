@@ -317,6 +317,18 @@ items (image, exe, folder, missing) — the rendering must be pixel-identical.
 | 2026-10-31 | C5 marked won't fix: GUI-first project, no accessibility work planned for now. |
 | 2026-10-31 | UI polish: aspect-correct thumbnails (letterboxed), hover cards on items, Windows 11 rounded fence corners, softer pointer halo, lighter light-mode label shadow, dark title bars for settings/rename, matching tray and fence menu styling. |
 | 2026-10-31 | Reverted B11's offscreen content cache: it flattened the translucent look (no DWM blur, no theme tint). Fences paint straight to the window surface again. |
+| 2026-11-01 | Design system distilled into `DESIGN.md`; D1–D5 resolved (rounded bordered cards, button state tints, theme-aware missing color, 4/8 metrics, Fluent menu renderer). |
+| 2026-11-01 | Glass lighting added: three-layer sheen/shadow/highlight pass on fences, section cards and menus; documented as a core principle. |
+| 2026-11-01 | Settings surfaces restyled: elevation tokens, 12 px cards, tinted canvas, fixed ruled header, footer rule. |
+| 2026-11-01 | Build scripts now save per-run logs (`build-logs\`), write `last-build.txt`, and show result dialogs; `-NoPopup`/`CI` suppress the dialog. |
+| 2026-11-01 | Settings window redesigned: borderless custom title bar, 14 px shadowed cards, stronger canvas contrast, build marker, and a glass intensity slider (default 100). |
+| 2026-11-01 | Adopted the Solid Glass material from deeplethe/solid-glass: edge-only finish (rim, hairlines, outline), thickness levels, neutral menu state; face gradients removed. |
+| 2026-11-01 | Rolled back the translucent settings background (opaque Canvas again); Solid Glass finish and stock widgets kept. |
+| 2026-11-01 | Solid Glass widget set applied: `GlassButton` across settings/dialogs; widget map in DESIGN.md §6.6. |
+| 2026-11-01 | Three-layer glass lighting and tiled grain on all surfaces; settings background blurred again; Glass lighting and Glass texture sliders. |
+| 2026-11-01 | Removed the title-bar/header/footer rules; `CardFace*` layouts repaint the card glass across nested panels; DWM window hairline. |
+| 2026-11-01 | Fixed the white seam on fences: the square edge highlight is skipped where DWM rounds the corners. |
+| 2026-11-01 | Fixed the light bars beside thumbnails: letterbox padding lost its transparency through GetHicon, so thumbnails now fill the square (center crop) instead. |
 
 ---
 

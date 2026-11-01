@@ -27,6 +27,8 @@
   <data name="Pointer highlight size"><value>Pointer highlight size</value></data>
   <data name="Icon glow intensity"><value>Icon glow intensity</value></data>
   <data name="Icon glow spread"><value>Icon glow spread</value></data>
+  <data name="Glass lighting"><value>Glass lighting</value></data>
+  <data name="Glass texture"><value>Glass texture</value></data>
   <data name="Fence content size"><value>Fence content size</value></data>
   <data name="Scales thumbnails, labels, and spacing independently of Windows display scaling. Existing fence dimensions stay unchanged; use Modify all to resize them."><value>Scales thumbnails, labels, and spacing independently of Windows display scaling. Existing fence dimensions stay unchanged; use Modify all to resize them.</value></data>
   <data name="Content scale"><value>Content scale</value></data>

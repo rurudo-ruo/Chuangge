@@ -8,13 +8,17 @@ namespace 窗格
 {
     internal static class FluentTheme
     {
-        private static readonly Color LightCanvas = Color.FromArgb(248, 249, 252);
+        private static readonly Color LightCanvas = Color.FromArgb(237, 240, 246);
         private static readonly Color LightSurface = Color.White;
+        private static readonly Color LightCard = Color.White;
+        private static readonly Color LightCardBorder = Color.FromArgb(224, 228, 236);
         private static readonly Color LightText = Color.FromArgb(32, 31, 30);
         private static readonly Color LightSecondaryText = Color.FromArgb(96, 94, 92);
         private static readonly Color LightBorder = Color.FromArgb(210, 208, 206);
-        private static readonly Color DarkCanvas = Color.FromArgb(32, 32, 32);
+        private static readonly Color DarkCanvas = Color.FromArgb(20, 20, 22);
         private static readonly Color DarkSurface = Color.FromArgb(44, 44, 44);
+        private static readonly Color DarkCard = Color.FromArgb(36, 36, 40);
+        private static readonly Color DarkCardBorder = Color.FromArgb(52, 52, 58);
         private static readonly Color DarkText = Color.FromArgb(243, 243, 243);
         private static readonly Color DarkSecondaryText = Color.FromArgb(200, 200, 200);
         private static readonly Color DarkBorder = Color.FromArgb(80, 80, 80);
@@ -26,9 +30,58 @@ namespace 窗格
         public static bool IsDark { get; private set; }
         public static Color Canvas => IsDark ? DarkCanvas : LightCanvas;
         public static Color Surface => IsDark ? DarkSurface : LightSurface;
+        public static Color CardSurface => IsDark ? DarkCard : LightCard;
+        public static Color CardBorder => IsDark ? DarkCardBorder : LightCardBorder;
+
+        // Solid Glass finish: the rim is the line of light on the top edge, the inner hairline
+        // sits just inside it, the edge is the outline, and the shade/contact are the shadows the
+        // surface casts. The face itself is never painted with a gradient.
+        public static Color GlassRim => IsDark
+            ? Color.FromArgb(41, Color.White)
+            : Color.FromArgb(230, Color.White);
+        public static Color GlassInner => IsDark
+            ? Color.FromArgb(10, Color.White)
+            : Color.FromArgb(89, Color.White);
+        public static Color GlassEdge => IsDark
+            ? Color.FromArgb(15, Color.White)
+            : Color.FromArgb(26, Color.Black);
+        public static Color GlassState => IsDark
+            ? Color.FromArgb(18, Color.White)
+            : Color.FromArgb(23, Color.Black);
+        public static Color GlassShade => IsDark
+            ? Color.FromArgb(153, Color.Black)
+            : Color.FromArgb(71, Color.Black);
+        public static Color GlassContact => IsDark
+            ? Color.FromArgb(26, Color.Black)
+            : Color.FromArgb(15, Color.Black);
+
+        /// <summary>
+        /// The thickest pane: menus, popovers and dialogs are nearly opaque, darker than a card in
+        /// the dark theme and paler than the page in the light one.
+        /// </summary>
+        public static Color PopoverSurface => IsDark
+            ? Color.FromArgb(30, 30, 30)
+            : Color.FromArgb(249, 249, 250);
+
+        /// <summary>A clear-glass control's fill, flattened over the surface it sits on.</summary>
+        public static Color GlassControlSurface => IsDark
+            ? Color.FromArgb(46, 46, 51)
+            : Color.FromArgb(246, 247, 250);
+
+        public static Color PrimaryRim => Color.FromArgb(76, Color.White);
+
+        public static Color PrimaryUnder => Color.FromArgb(115, Color.Black);
         public static Color Text => IsDark ? DarkText : LightText;
         public static Color SecondaryText => IsDark ? DarkSecondaryText : LightSecondaryText;
         public static Color Border => IsDark ? DarkBorder : LightBorder;
+
+        /// <summary>
+        /// Label color for a fence item whose target no longer exists. Amber reads on the dark
+        /// overlay; light panels need the darker variant to keep contrast.
+        /// </summary>
+        public static Color MissingItemText => IsDark
+            ? Color.FromArgb(255, 224, 176)
+            : Color.FromArgb(138, 75, 0);
         public static Color Accent => accent;
 
         public static void Configure(bool isDark, Color accentColor)
@@ -58,7 +111,11 @@ namespace 窗格
 
                 var isSurface = string.Equals(control.Tag as string, "FluentSurface", StringComparison.Ordinal);
                 if (isSurface)
-                    control.BackColor = Surface;
+                    control.BackColor = CardSurface;
+
+                var divider = control as Panel;
+                if (divider != null && string.Equals(divider.Tag as string, "FluentDivider", StringComparison.Ordinal))
+                    divider.BackColor = Border;
 
                 var button = control as Button;
                 if (button != null)
@@ -104,13 +161,19 @@ namespace 窗格
                 else if (label != null)
                     label.ForeColor = Text;
 
-                var childBackColor = isSurface ? Surface : control.BackColor;
+                var childBackColor = isSurface || control is SettingsSectionControl
+                    ? CardSurface
+                    : control.BackColor;
                 ApplyToControls(control.Controls, primaryButton, childBackColor);
             }
         }
 
         public static void StyleButton(Button button, bool primary)
         {
+            var glassButton = button as GlassButton;
+            if (glassButton != null)
+                glassButton.Primary = primary;
+
             button.FlatStyle = FlatStyle.Flat;
             button.UseVisualStyleBackColor = false;
             button.FlatAppearance.BorderSize = 1;
@@ -130,8 +193,21 @@ namespace 窗格
             button.BackColor = primary ? Accent : Surface;
             button.ForeColor = primary ? GetContrastingText(Accent) : Text;
             button.FlatAppearance.BorderColor = primary ? Accent : Border;
-            button.FlatAppearance.MouseOverBackColor = button.BackColor;
-            button.FlatAppearance.MouseDownBackColor = button.BackColor;
+            button.FlatAppearance.MouseOverBackColor = primary
+                ? Blend(Accent, Color.White, 0.08)
+                : Blend(Surface, Text, 0.06);
+            button.FlatAppearance.MouseDownBackColor = primary
+                ? Blend(Accent, Color.Black, 0.10)
+                : Blend(Surface, Text, 0.12);
+        }
+
+        private static Color Blend(Color from, Color to, double amount)
+        {
+            return Color.FromArgb(
+                from.A,
+                (int)Math.Round(from.R + (to.R - from.R) * amount),
+                (int)Math.Round(from.G + (to.G - from.G) * amount),
+                (int)Math.Round(from.B + (to.B - from.B) * amount));
         }
 
         public static Color AccentOverlay(int alpha)

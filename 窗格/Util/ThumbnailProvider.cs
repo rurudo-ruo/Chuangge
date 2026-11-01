@@ -200,8 +200,10 @@ namespace 窗格.Util
         }
 
         /// <summary>
-        /// Scales the image to fit a square while preserving its aspect ratio, padding the rest
-        /// with transparency. <c>GetThumbnailImage</c> would stretch it to the square instead.
+        /// Scales the image to fill a square without distortion, cropping the overflow. Filling
+        /// rather than letterboxing matters: the letterbox padding is transparent, and the HICON
+        /// the provider hands to WinForms does not keep that transparency — it renders the padding
+        /// as a light bar beside every thumbnail.
         /// </summary>
         private static Bitmap CreateSquareThumbnail(Image source, int size)
         {
@@ -213,9 +215,9 @@ namespace 窗格.Util
                 graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
                 graphics.SmoothingMode = SmoothingMode.HighQuality;
 
-                var scale = Math.Min((float)size / source.Width, (float)size / source.Height);
-                var width = Math.Max(1, (int)Math.Round(source.Width * scale));
-                var height = Math.Max(1, (int)Math.Round(source.Height * scale));
+                var scale = Math.Max((float)size / source.Width, (float)size / source.Height);
+                var width = Math.Max(size, (int)Math.Ceiling(source.Width * scale));
+                var height = Math.Max(size, (int)Math.Ceiling(source.Height * scale));
                 graphics.DrawImage(source,
                     new Rectangle((size - width) / 2, (size - height) / 2, width, height));
             }

@@ -13,7 +13,7 @@
 - Shell context-menu and shortcut interop is grouped under `Win32`, including the `IShellLink`/`IPersistFile` definitions used to create the startup shortcut without Windows Script Host.
 - Diagnostics go through `Util\AppLogger.cs`, which keeps seven days of rolling logs in `%LOCALAPPDATA%\NoFences\logs`. Unhandled exceptions are caught at the `Program` boundary so a fence can still save before the app closes.
 
-The project uses an explicit source-file list in `窗格\窗格.csproj`, so new `.cs` files must be added there. No automated test project is currently configured. For changes to persistence, layout, or settings, validate with the Release build and manually verify loading existing layouts, adding/removing/reordering items, moving items between fences, resizing/moving and closing fences, and applying settings.
+The project uses an explicit source-file list in `窗格\窗格.csproj`, so new `.cs` files must be added there. The test project covers fence layout geometry and resource-key consistency; run it with `dotnet test tests\NoFences.Tests\NoFences.Tests.csproj`. For changes to persistence, layout, or settings, also validate with the Release build and manually verify loading existing layouts, adding/removing/reordering items, moving items between fences, resizing/moving and closing fences, and applying settings.
 
 ## Prerequisites
 
@@ -30,7 +30,16 @@ From the repository folder, run in PowerShell:
 .\build.ps1
 ```
 
-The script checks for MSBuild and the .NET Framework 4.8 targeting pack before building. If the matching Release app is running, it requests a normal window close and waits for the fences to save; it never force-terminates the app and cancels the build if the app cannot close safely. If PowerShell blocks running the script, use:
+The script checks for MSBuild and the .NET Framework 4.8 targeting pack before building. If the matching Release app is running, it requests a normal window close and waits for the fences to save; it never force-terminates the app and cancels the build if the app cannot close safely.
+
+Every run records its result in `build-logs`:
+
+- `build-yyyyMMdd-HHmmss.log` — the full console output, including the MSBuild stream. The 50 most recent logs are kept.
+- `last-build.txt` — a machine-readable summary: status, start/finish timestamps, duration, error and warning counts, executable path and log path.
+
+The outcome is also shown in a message box. Success reports the duration, the executable and the log; failure reports the reason and offers to open the log. Pass `-NoPopup`, or set the `CI` environment variable, for unattended runs. `build.cmd` is a thin wrapper that passes its arguments through. Pass `-Run` to start the app after a successful build.
+
+If PowerShell blocks running the script, use:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\build.ps1
@@ -62,7 +71,7 @@ The optional sign-in launch uses a single shortcut in the current user's Windows
 
 ## UI appearance
 
-The interface uses Fluent Design as a visual baseline without adding a UI-framework dependency. `窗格\FluentTheme.cs` centralizes the settings and dialog palette; buttons use stable colors without hover/pressed fills. The app follows the Windows app light/dark preference and DWM accent color by default; users can disable this and choose a display mode and accent color in Advanced settings. Separate light/dark overlay opacity sliders default to the existing background alpha values. Advanced settings also provide a glow-effects switch, custom pointer highlight color, and separate intensity/size controls for pointer and icon glows. The reusable settings window opens modelessly so fences remain interactive, and sizes/centers itself within the active monitor's work area. Fence windows remain custom-drawn and translucent, with softly blurred text shadows, icon-colored glows derived from each icon's blurred pixels, a customizable cursor-following glass highlight, and persistent selection/drag feedback scaled from logical units for per-monitor DPI. The interface does not use unnecessary secondary labels or redundant text; it lets the layout and icons communicate the app's purpose.
+The interface uses Fluent Design as a visual baseline without adding a UI-framework dependency. `窗格\FluentTheme.cs` centralizes the settings and dialog palette; buttons use restrained surface/accent tints for hover and press. Context menus are drawn by `FluentMenuRenderer` so they follow the app palette and custom accent instead of the system accent. Fence windows and context menus use the glass finish (`GlassPainter`); settings use opaque canvas and card surfaces so controls remain legible regardless of desktop wallpaper. Nested settings layouts repaint their card surface (`CardFaceTableLayoutPanel` / `CardFaceFlowLayoutPanel`), and the title bar, page header and footer have no dividing rules. Buttons use the `GlassButton` widget (solid surface, restrained hover/press states; the primary action is the solid accent); the rest of the UI follows the component guidance in DESIGN.md §6.6. The app follows the Windows app light/dark preference and DWM accent color by default; users can disable this and choose a display mode and accent color in Advanced settings. Separate light/dark overlay opacity sliders default to the existing background alpha values. Advanced settings also provide a glow-effects switch, custom pointer highlight color, and separate intensity/size controls for pointer and icon glows. The reusable settings window opens modelessly so fences remain interactive, sizes/centers itself within the active monitor's work area, and uses a borderless DWM-rounded shell with a custom title bar (drag, close glyph, Esc) instead of a native caption. Fence windows remain custom-drawn and translucent, with softly blurred text shadows, icon-colored glows derived from each icon's blurred pixels, a customizable cursor-following glass highlight, and persistent selection/drag feedback scaled from logical units for per-monitor DPI. The interface does not use unnecessary secondary labels or redundant text; it lets the layout and icons communicate the app's purpose.
 
 ## Fence data and compatibility
 

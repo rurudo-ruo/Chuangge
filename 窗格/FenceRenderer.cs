@@ -64,8 +64,8 @@ namespace 窗格
             selectionBrush = new SolidBrush(FluentTheme.AccentOverlay(FluentTheme.IsDark ? 64 : 42));
             selectionBorderPen = new Pen(Color.FromArgb(210, FluentTheme.Accent));
             itemNameBrush = new SolidBrush(FluentTheme.Text);
-            missingNameBrush = new SolidBrush(Color.FromArgb(255, 224, 176));
-            hoverBrush = new SolidBrush(Color.FromArgb(FluentTheme.IsDark ? 26 : 18, FluentTheme.Text));
+            missingNameBrush = new SolidBrush(FluentTheme.MissingItemText);
+            hoverBrush = new SolidBrush(FluentTheme.GlassState);
         }
 
         public void DrawItem(Graphics g, FenceEntry entry, int x, int y, int itemWidth,
@@ -80,7 +80,7 @@ namespace 窗格
             var inset = contentToDeviceUnits(4);
             var cardRect = new Rectangle(x - inset, y,
                 itemWidth + inset * 2, itemHeight);
-            var iconTextGap = contentToDeviceUnits(5);
+            var iconTextGap = contentToDeviceUnits(4);
             var contentHeight = iconSize + iconTextGap + (int)textSize.Height;
             var contentOffset = Math.Max(0, (itemHeight - contentHeight) / 2);
             var iconY = y + contentOffset;
@@ -88,16 +88,16 @@ namespace 窗格
 
             if (isHovered && !isSelected)
             {
-                using (var hoverPath = CreateRoundedRectangle(cardRect, contentToDeviceUnits(7)))
+                using (var hoverPath = CreateRoundedRectangle(cardRect, contentToDeviceUnits(8)))
                     g.FillPath(hoverBrush, hoverPath);
             }
 
             if (isSelected)
             {
-                using (var cardPath = CreateRoundedRectangle(cardRect, contentToDeviceUnits(7)))
+                using (var cardPath = CreateRoundedRectangle(cardRect, contentToDeviceUnits(8)))
                     g.FillPath(selectionBrush, cardPath);
 
-                using (var cardPath = CreateRoundedRectangle(cardRect, contentToDeviceUnits(7)))
+                using (var cardPath = CreateRoundedRectangle(cardRect, contentToDeviceUnits(8)))
                     g.DrawPath(selectionBorderPen, cardPath);
             }
 

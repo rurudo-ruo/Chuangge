@@ -69,7 +69,7 @@ namespace 窗格
 
         private static TableLayoutPanel CreateLayout(int columns, int rows)
         {
-            var layout = new TableLayoutPanel
+            var layout = new CardFaceTableLayoutPanel
             {
                 AutoSize = true,
                 ColumnCount = columns,
@@ -106,7 +106,7 @@ namespace 窗格
 
         public ContentScaleSettingsControl()
         {
-            var layout = new TableLayoutPanel
+            var layout = new CardFaceTableLayoutPanel
             {
                 AutoSize = true,
                 ColumnCount = 1,
@@ -142,7 +142,7 @@ namespace 窗格
             };
             scale.ValueChanged += (sender, e) => valueLabel.Text = scale.Value + "%";
 
-            var row = new TableLayoutPanel
+            var row = new CardFaceTableLayoutPanel
             {
                 AutoSize = true,
                 ColumnCount = 3,
@@ -205,7 +205,7 @@ namespace 窗格
 
         public StartupSettingsControl()
         {
-            var layout = new TableLayoutPanel
+            var layout = new CardFaceTableLayoutPanel
             {
                 AutoSize = true,
                 ColumnCount = 1,
@@ -245,7 +245,7 @@ namespace 窗格
 
         public FenceStorageSettingsControl()
         {
-            var layout = new TableLayoutPanel
+            var layout = new CardFaceTableLayoutPanel
             {
                 AutoSize = true,
                 ColumnCount = 1,
@@ -273,7 +273,7 @@ namespace 窗格
                 ScrollBars = ScrollBars.Vertical,
                 Text = FenceManager.Instance.DataDirectory
             }, 0, 1);
-            var actions = new FlowLayoutPanel
+            var actions = new CardFaceFlowLayoutPanel
             {
                 AutoSize = true,
                 Dock = DockStyle.Fill,
@@ -289,7 +289,7 @@ namespace 窗格
                 Tag = "FluentSecondaryText",
                 TextAlign = ContentAlignment.MiddleLeft
             };
-            var openFolderButton = new Button
+            var openFolderButton = new GlassButton
             {
                 AutoSize = true,
                 MinimumSize = new Size(144, 34),

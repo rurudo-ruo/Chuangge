@@ -69,6 +69,10 @@
     <Compile Include="Model\FenceManager.cs" />
     <Compile Include="GlobalFenceSettings.cs" />
     <Compile Include="FluentTheme.cs" />
+    <Compile Include="FluentMenuRenderer.cs" />
+    <Compile Include="GlassPainter.cs" />
+    <Compile Include="GlassSurface.cs" />
+    <Compile Include="GlassWidgets.cs" />
     <Compile Include="UiText.cs" />
     <Compile Include="AdvancedSettingsForm.cs">
       <SubType>Form</SubType>

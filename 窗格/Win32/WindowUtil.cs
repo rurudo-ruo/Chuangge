@@ -18,6 +18,7 @@ namespace 窗格.Win32
         public const int HTBOTTOMRIGHT = 17;
 
         public const int WM_NCCALCSIZE = 0x0083;
+        public const int WM_NCLBUTTONDOWN = 0x00A1;
         public const int WM_SYSCOMMAND = 274;
         public const int SC_MAXIMIZE = 0xF030;
         public const int SC_MINIMIZE = 0xF020;
@@ -85,6 +86,45 @@ namespace 窗格.Win32
 
             DeleteObject(region);
             return false;
+        }
+
+        /// <summary>
+        /// Rounds the corners through DWM only. Unlike <see cref="ApplyRoundedCorners"/> this never
+        /// installs a clipping region, so the system drop shadow survives on older Windows.
+        /// </summary>
+        public static void ApplyDwmRoundedCorners(IntPtr hWnd)
+        {
+            const int dwmWindowCornerPreference = 33;
+            const int dwmRound = 2;
+            var preference = dwmRound;
+            DropShadow.DwmSetWindowAttribute(hWnd, dwmWindowCornerPreference, ref preference, sizeof(int));
+        }
+
+        /// <summary>
+        /// Draws the window's hairline through DWM (Windows 11). The colour is opaque; the system
+        /// draws it in the non-client frame, so it never crosses the client content.
+        /// </summary>
+        public static void ApplyBorderColor(IntPtr hWnd, System.Drawing.Color color)
+        {
+            const int dwmBorderColor = 34;
+            var colorRef = color.R | (color.G << 8) | (color.B << 16);
+            DropShadow.DwmSetWindowAttribute(hWnd, dwmBorderColor, ref colorRef, sizeof(int));
+        }
+
+        [DllImport("user32.dll")]
+        private static extern bool ReleaseCapture();
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+
+        /// <summary>
+        /// Starts a native window move from a custom title bar. Call from MouseDown; the mouse is
+        /// captured by the caller and released by the window manager.
+        /// </summary>
+        public static void DragWindow(IntPtr hWnd)
+        {
+            ReleaseCapture();
+            SendMessage(hWnd, WM_NCLBUTTONDOWN, (IntPtr)HTCAPTION, IntPtr.Zero);
         }
 
         [DllImport("user32.dll")]

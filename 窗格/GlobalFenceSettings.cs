@@ -56,6 +56,10 @@ namespace 窗格
 
         public static int IconGlowRadius => Math.Max(2, Math.Min(18, Settings.Default.IconGlowRadius));
 
+        public static int GlassIntensity => Math.Max(0, Math.Min(200, Settings.Default.GlassIntensity));
+
+        public static int GlassTexture => Math.Max(0, Math.Min(100, Settings.Default.GlassTexture));
+
         public static bool IsDisplayModeDark(string displayMode)
         {
             return string.Equals(displayMode, "Dark", StringComparison.OrdinalIgnoreCase);
@@ -64,7 +68,8 @@ namespace 窗格
         public static void Update(int titleHeight, bool hideTitleArea, bool useSystemTheme,
             string displayMode, int customAccentColor, int darkOverlayOpacity, int lightOverlayOpacity,
             bool glowEffectsEnabled, int pointerGlowColor, int pointerGlowIntensity, int pointerGlowRadius,
-            int iconGlowIntensity, int iconGlowRadius, int contentScalePercent)
+            int iconGlowIntensity, int iconGlowRadius, int contentScalePercent, int glassIntensity,
+            int glassTexture)
         {
             Settings.Default.GlobalTitleHeight = Math.Max(16, Math.Min(100, titleHeight));
             Settings.Default.ContentScalePercent = Math.Max(50, Math.Min(200, contentScalePercent));
@@ -80,6 +85,8 @@ namespace 窗格
             Settings.Default.PointerGlowRadius = Math.Max(32, Math.Min(128, pointerGlowRadius));
             Settings.Default.IconGlowIntensity = Math.Max(0, Math.Min(100, iconGlowIntensity));
             Settings.Default.IconGlowRadius = Math.Max(2, Math.Min(18, iconGlowRadius));
+            Settings.Default.GlassIntensity = Math.Max(0, Math.Min(200, glassIntensity));
+            Settings.Default.GlassTexture = Math.Max(0, Math.Min(100, glassTexture));
             Settings.Default.Save();
             ApplyTheme();
             Changed?.Invoke(null, EventArgs.Empty);

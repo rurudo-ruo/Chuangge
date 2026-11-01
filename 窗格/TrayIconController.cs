@@ -1,4 +1,5 @@
 using 窗格.Model;
+using 窗格.Win32;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -17,10 +18,16 @@ namespace 窗格
             contextMenu.Items.Add(UiText.Get("Advanced settings"), null, AdvancedSettings_Click);
             contextMenu.Items.Add(new ToolStripSeparator());
             contextMenu.Items.Add(UiText.Get("Exit"), null, Exit_Click);
-            contextMenu.RenderMode = ToolStripRenderMode.System;
+            contextMenu.RenderMode = ToolStripRenderMode.Professional;
+            contextMenu.Renderer = new FluentMenuRenderer();
             contextMenu.Font = FluentTheme.BodyFont;
+            contextMenu.ForeColor = FluentTheme.Text;
             foreach (ToolStripItem item in contextMenu.Items)
                 item.Padding = new Padding(10, 5, 10, 5);
+            contextMenu.Opening += (sender, e) => UpdateMenuTheme();
+            contextMenu.Opened += (sender, e) => WindowUtil.ApplyRoundedCorners(
+                contextMenu.Handle, contextMenu.Width, contextMenu.Height,
+                contextMenu.DeviceDpi * 8 / 96);
 
             notifyIcon = new NotifyIcon
             {
@@ -37,6 +44,13 @@ namespace 窗格
             notifyIcon.Visible = false;
             notifyIcon.Dispose();
             contextMenu.Dispose();
+        }
+
+        private void UpdateMenuTheme()
+        {
+            contextMenu.ForeColor = FluentTheme.Text;
+            foreach (ToolStripItem item in contextMenu.Items)
+                item.ForeColor = FluentTheme.Text;
         }
 
         private static void NewFence_Click(object sender, EventArgs e)
