@@ -25,13 +25,15 @@ namespace 窗格
         private static Color accent = Color.FromArgb(0, 120, 212);
         public static readonly Font BodyFont = new Font("Segoe UI", 9f, FontStyle.Regular);
         public static readonly Font BoldBodyFont = new Font(BodyFont, FontStyle.Bold);
-        public static readonly Font HeadingFont = new Font("Segoe UI", 16f, FontStyle.Bold);
+        public static readonly Font SectionHeadingFont = new Font("Segoe UI", 10f, FontStyle.Bold);
+        public static readonly Font HeadingFont = new Font("Segoe UI", 21f, FontStyle.Bold);
 
         public static bool IsDark { get; private set; }
         public static Color Canvas => IsDark ? DarkCanvas : LightCanvas;
         public static Color Surface => IsDark ? DarkSurface : LightSurface;
         public static Color CardSurface => IsDark ? DarkCard : LightCard;
         public static Color CardBorder => IsDark ? DarkCardBorder : LightCardBorder;
+        public static Color GlassCardSurface => Color.FromArgb(IsDark ? 230 : 232, CardSurface);
 
         // Solid Glass finish: the rim is the line of light on the top edge, the inner hairline
         // sits just inside it, the edge is the outline, and the shade/contact are the shadows the
@@ -62,6 +64,9 @@ namespace 窗格
         public static Color PopoverSurface => IsDark
             ? Color.FromArgb(30, 30, 30)
             : Color.FromArgb(249, 249, 250);
+        public static Color PopoverBlurSurface => IsDark
+            ? Color.FromArgb(224, 30, 30, 30)
+            : Color.FromArgb(232, 249, 249, 250);
 
         /// <summary>A clear-glass control's fill, flattened over the surface it sits on.</summary>
         public static Color GlassControlSurface => IsDark
@@ -106,7 +111,12 @@ namespace 窗格
                 var flowLayout = control as FlowLayoutPanel;
                 if (tableLayout != null || flowLayout != null)
                 {
-                    control.BackColor = inheritedBackColor;
+                    var glassContainer = control is GlassTableLayoutPanel
+                        || control is GlassFlowLayoutPanel
+                        || control is CardFaceTableLayoutPanel
+                        || control is CardFaceFlowLayoutPanel
+                        || control is GlassPanel;
+                    control.BackColor = glassContainer ? Color.Transparent : inheritedBackColor;
                 }
 
                 var isSurface = string.Equals(control.Tag as string, "FluentSurface", StringComparison.Ordinal);
@@ -146,6 +156,10 @@ namespace 窗格
                     comboBox.ForeColor = Text;
                     comboBox.FlatStyle = FlatStyle.Flat;
                 }
+
+                var trackBar = control as TrackBar;
+                if (trackBar != null)
+                    trackBar.BackColor = CardSurface;
 
                 var checkBox = control as CheckBox;
                 if (checkBox != null)

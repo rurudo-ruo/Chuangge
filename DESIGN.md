@@ -19,8 +19,8 @@ gap is listed in §10 rather than silently tolerated.
    their own surface rather than bright color changes, so state is visible without flicker.
 5. **Fluent as reference, not dependency.** No UI framework is added; effects are drawn by hand or
    delegated to DWM.
-6. **Use translucency where it helps.** Fences and menus use the glass finish; settings use opaque
-   canvas and cards so controls remain legible regardless of the desktop wallpaper.
+6. **One glass language.** Fences, settings and popup menus share backdrop blur and restrained
+   glass lighting; grouped settings cards and themed controls keep content legible.
 
 ---
 
@@ -32,8 +32,10 @@ gap is listed in §10 rather than silently tolerated.
 |---|---|---|---|
 | Canvas | `#EDF0F6` | `#141416` | Settings and dialog background |
 | CardSurface | `#FFFFFF` | `#242428` | Section cards and elevated panels |
+| GlassCardSurface | CardSurface α 232 | CardSurface α 230 | Settings cards over the blurred page |
 | CardBorder | `#E0E4EC` | `#34343A` | Card tone reference; outlines are drawn with `GlassEdge` |
 | Surface | `#FFFFFF` | `#2C2C2C` | Buttons, inputs and menus |
+| Popover blur surface | `#F9F9FA` α 232 | `#1E1E1E` α 224 | Menus over DWM backdrop blur |
 | Text | `#201F1E` | `#F3F3F3` | Primary text, fence labels, icons on surface |
 | SecondaryText | `#605E5C` | `#C8C8C8` | Hints, value labels, disabled text |
 | Border | `#D2D0CE` | `#505050` | Stock control borders and menu separators |
@@ -74,7 +76,8 @@ halves both. Scroll bar, hover and selection alphas are constant.
 |---|---|---|---|
 | Body | Segoe UI | 9 pt | Regular |
 | Emphasis | Segoe UI | 9 pt | Bold |
-| Page heading | Segoe UI | 16 pt | Bold |
+| Page heading | Segoe UI | 21 pt | Bold |
+| Section heading | Segoe UI | 10 pt | Bold |
 | Window title | Segoe UI | 11 pt | Regular |
 | Fence title | Segoe UI | `titleHeight / 2` pt | Regular |
 | Item label | Segoe UI | 9 pt × content scale | Regular |
@@ -112,7 +115,7 @@ Settings chrome converts with DPI only.
 
 | Metric | Value |
 |---|---|
-| Form padding | 28 |
+| Form padding | 24 |
 | Section card padding | 20 |
 | Gap between cards | 14 |
 | Window title bar | 48 |
@@ -174,8 +177,8 @@ the three light layers across the face, above the blur:
 Fences, which are rounded by DWM rather than by a path, omit the edge highlight: a square 1 px
 line would cut the corners and read as a seam. They get the two face washes and the grain.
 
-**Thickness:** cards use the card tone with the full finish; menus use the near-opaque
-`PopoverSurface`; fences use their blurred body.
+**Thickness:** menus use the near-opaque `PopoverBlurSurface`; fences use their blurred body.
+Settings use a translucent window tint, translucent glass cards and themed controls.
 
 **State:** a menu row under the pointer or the keyboard, and a fence item under the pointer, are
 filled with `GlassState`, closed by the outline and lit by the rim — the same pane everywhere.
@@ -184,8 +187,8 @@ Selection keeps the accent tint: it is meaningful state, not hover chrome.
 **Intensity:** two Advanced settings sliders. *Glass lighting* (0–200%, default 100) scales the
 sheen, inner shadow, rim and hairlines; *Glass texture* (0–100%, default 30) scales the grain.
 
-**Scope:** fences, section cards, menus, and the settings window background. The window tint
-reuses the body overlay opacity (92 dark / 174 light); there is no separate window tint token.
+**Scope:** fences, settings cards and menus. The settings window and its cards use backdrop blur
+and translucent tints; controls use theme-aware surfaces for legibility.
 
 - **No animations, no per-item transitions.**
 
@@ -216,13 +219,16 @@ reuses the body overlay opacity (92 dark / 174 light); there is no separate wind
 
 ### 6.3 Settings
 
-- **Borderless window**: DWM-rounded corners, the system drop shadow, a DWM hairline border, and an
-  opaque theme canvas. A 48 px custom title bar carries the product name and section title and
-  closes through the glyph or Esc; the bar drags the window. No dividing rule separates it from
-  the content.
-- A single column of **cards** (CardSurface, 14 px radius, 20 px padding, 14 px gap) sits on the
-  canvas. Nested layouts use the same solid card color; a subtle border and restrained shadow
-  separate each card without competing with its controls.
+- **Borderless window**: DWM-rounded corners, the system drop shadow, a DWM hairline border, and
+  backdrop blur beneath a translucent theme tint. A 48 px custom title bar carries the product
+  name and section title and closes through the glyph or Esc; the bar drags the window. No
+  dividing rule separates it from the content.
+- A single column of **glass cards** (GlassCardSurface, 14 px radius, 20 px padding, 14 px gap)
+  groups theme/overlay, glow, fence layout, startup, storage and bulk actions. Each card uses the
+  same sheen, inner shadow, grain and edge finish as the fence; a restrained shadow separates it
+  from the blurred page.
+- Nested card layouts stay transparent so they do not cover the glass finish. Inputs use themed
+  surfaces, sliders follow the card palette, and buttons use `GlassButton`.
 - Fixed page header outside the scrolling area: heading + one secondary line, no separating rule.
 - Controls: labels left, control right, values in a 48 px column.
 - Buttons use `GlassButton`: a solid themed surface with restrained hover/press states; the
@@ -237,20 +243,21 @@ reuses the body overlay opacity (92 dark / 174 light); there is no separate wind
 
 ### 6.5 Menus
 
-- Fence and tray menus use `FluentMenuRenderer`, the thickest pane: near-opaque `PopoverSurface`
-  with the Solid Glass finish (rim, inner hairline, outline), 8 px rounded corners, body font,
-  10/5 item padding, Text-colored labels and SecondaryText when disabled.
+- Fence and tray menus use `FluentMenuRenderer`, the thickest pane: `PopoverBlurSurface` over DWM
+  backdrop blur, with the Solid Glass finish (rim, inner hairline, outline), 8 px rounded corners,
+  body font, 12/6 item padding and aligned check margins. Related actions are separated into
+  compact groups. Labels use Text and disabled items use SecondaryText. If blur is unavailable,
+  menus use the opaque `PopoverSurface`.
 - A row under the pointer or the keyboard is the one neutral state: `GlassState` fill, outline and
   rim — no accent tint. Checks are drawn in the text color.
 - The shell item menu is the OS menu (unstyled by design).
 
 ### 6.6 Widget set
 
-The settings panel favors opaque, familiar WinForms controls for legibility:
-
-Cards use `SettingsSectionControl` with an opaque CardSurface fill, subtle border and restrained
-shadow. Inputs, sliders and checkboxes use stock WinForms controls with the app palette. Dialog
-actions use `GlassButton`; menus retain the glass renderer.
+The settings page uses `SettingsSectionControl` for translucent, rounded cards with the same glass
+finish as the fences. Transparent nested layouts preserve the card sheen and grain. Inputs use
+theme-aware surfaces, checkboxes remain clear against the card, sliders use the card palette, and
+actions use `GlassButton`. Fence and tray menus share one renderer and spacing system.
 
 ---
 
@@ -258,7 +265,7 @@ actions use `GlassButton`; menus retain the glass renderer.
 
 - Follow Windows by default (app mode + accent), or a manual light/dark mode with a custom accent.
 - Overlay opacity is adjustable per theme; glow effects can be disabled entirely.
-- Glass lighting and texture tune the translucent fence/menu finish, not settings cards.
+- Glass lighting and texture tune the translucent fence, settings-card and menu finishes.
 - Changes apply on **Apply**; the title bar of the settings window updates live when the theme
   changes underneath it.
 - Fences repaint content on theme change: fonts, brushes and effect caches are rebuilt.
@@ -332,3 +339,5 @@ code; the table is kept so the decisions stay traceable.
 | 2026-11-01 | Dropped the square edge highlight from the fence: it drew a white seam at the DWM-rounded corners. Fences keep the sheen, inner shadow and grain. |
 | 2026-11-02 | Simplified settings to an opaque canvas and solid cards; removed backdrop blur, card grain and heavy shadows for legible controls over any wallpaper. |
 | 2026-11-02 | Extended fence lighting gradients across the full surface to avoid a visible seam at the sheen band edge. |
+| 2026-11-02 | Enabled backdrop blur on fence, settings and popup windows with translucent tints and solid fallbacks; kept settings cards and controls opaque. |
+| 2026-11-02 | Reworked advanced settings into translucent glass cards and unified fence/tray menu spacing and separators with the same glass material. |

@@ -3,61 +3,70 @@ using System.Windows.Forms;
 
 namespace 窗格
 {
-    /// <summary>Paints an opaque settings canvas so controls stay legible over any desktop.</summary>
+    /// <summary>Paints a translucent tint over the window backdrop when blur is available.</summary>
     internal static class GlassSurface
     {
-        public static void Paint(Graphics graphics, Color color)
+        public static void PaintBackdrop(Graphics graphics, Rectangle bounds, bool blurEnabled)
         {
-            graphics.Clear(color);
+            if (!blurEnabled)
+            {
+                graphics.Clear(FluentTheme.Canvas);
+                return;
+            }
+
+            graphics.Clear(Color.Transparent);
+            var alpha = GlobalFenceSettings.GetOverlayOpacity(92, 174);
+            using (var brush = new SolidBrush(Color.FromArgb(alpha,
+                FluentTheme.IsDark ? Color.Black : Color.White)))
+            {
+                graphics.FillRectangle(brush, bounds);
+            }
         }
     }
 
     internal class GlassPanel : Panel
     {
-        protected override void OnPaintBackground(PaintEventArgs e)
+        public GlassPanel()
         {
-            GlassSurface.Paint(e.Graphics, BackColor);
+            SetStyle(ControlStyles.SupportsTransparentBackColor, true);
+            BackColor = Color.Transparent;
         }
     }
 
     internal class GlassTableLayoutPanel : TableLayoutPanel
     {
-        protected override void OnPaintBackground(PaintEventArgs e)
+        public GlassTableLayoutPanel()
         {
-            GlassSurface.Paint(e.Graphics, BackColor);
+            SetStyle(ControlStyles.SupportsTransparentBackColor, true);
+            BackColor = Color.Transparent;
         }
     }
 
     internal class GlassFlowLayoutPanel : FlowLayoutPanel
     {
-        protected override void OnPaintBackground(PaintEventArgs e)
+        public GlassFlowLayoutPanel()
         {
-            GlassSurface.Paint(e.Graphics, BackColor);
+            SetStyle(ControlStyles.SupportsTransparentBackColor, true);
+            BackColor = Color.Transparent;
         }
     }
 
-    /// <summary>A layout inside a settings card, painted with the card's solid surface color.</summary>
+    /// <summary>A transparent layout that preserves its settings card's glass finish.</summary>
     internal class CardFaceTableLayoutPanel : TableLayoutPanel
     {
-        protected override void OnPaintBackground(PaintEventArgs e)
+        public CardFaceTableLayoutPanel()
         {
-            CardFace.Paint(e.Graphics);
+            SetStyle(ControlStyles.SupportsTransparentBackColor, true);
+            BackColor = Color.Transparent;
         }
     }
 
     internal class CardFaceFlowLayoutPanel : FlowLayoutPanel
     {
-        protected override void OnPaintBackground(PaintEventArgs e)
+        public CardFaceFlowLayoutPanel()
         {
-            CardFace.Paint(e.Graphics);
-        }
-    }
-
-    internal static class CardFace
-    {
-        public static void Paint(Graphics graphics)
-        {
-            graphics.Clear(FluentTheme.CardSurface);
+            SetStyle(ControlStyles.SupportsTransparentBackColor, true);
+            BackColor = Color.Transparent;
         }
     }
 }

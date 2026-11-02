@@ -39,12 +39,14 @@ namespace 窗格
         private readonly Label glassIntensityValue;
         private readonly TrackBar glassTexture;
         private readonly Label glassTextureValue;
+        private readonly Label fitDescription;
         private Button primaryActionButton;
         private Color customAccentColor;
         private Color pointerGlowColor;
         private readonly Panel titleBar;
         private readonly Font titleBarFont;
         private bool closeHovered;
+        private bool backdropBlurEnabled;
         private Rectangle closeBounds;
 
         public static void ShowSettings(IWin32Window owner = null)
@@ -97,8 +99,7 @@ namespace 窗格
             titleBar = new GlassPanel
             {
                 Dock = DockStyle.Top,
-                Height = 48,
-                BackColor = FluentTheme.Canvas
+                Height = 48
             };
             titleBar.Paint += TitleBar_Paint;
             titleBar.MouseDown += TitleBar_MouseDown;
@@ -112,22 +113,20 @@ namespace 窗格
                 AutoSize = false,
                 ColumnCount = 1,
                 Dock = DockStyle.Fill,
-                Padding = new Padding(28, 8, 28, 28),
+                Padding = new Padding(24, 8, 24, 24),
                 RowCount = 7,
                 AutoScroll = true
             };
             contentLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             for (var i = 0; i < contentLayout.RowCount; i++)
                 contentLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            contentLayout.Paint += ContentLayout_Paint;
-
             var pageHeader = new GlassTableLayoutPanel
             {
                 AutoSize = true,
                 ColumnCount = 1,
                 Dock = DockStyle.Top,
                 Margin = new Padding(0),
-                Padding = new Padding(28, 16, 28, 12),
+                Padding = new Padding(24, 20, 24, 16),
                 RowCount = 2
             };
             pageHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -137,15 +136,15 @@ namespace 窗格
             {
                 AutoSize = true,
                 Font = FluentTheme.HeadingFont,
-                Margin = new Padding(0, 0, 0, 4),
-                Text = UiText.Get("Appearance")
+                Margin = new Padding(0, 0, 0, 6),
+                Text = UiText.Get("Appearance and behavior")
             };
             notice = new Label
             {
                 AutoSize = true,
                 ForeColor = FluentTheme.SecondaryText,
                 Margin = new Padding(0),
-                Text = UiText.Get("These global appearance settings apply to all fences.")
+                Text = UiText.Get("Changes apply to every fence.")
             };
             pageHeader.Controls.Add(pageTitle, 0, 0);
             pageHeader.Controls.Add(notice, 0, 1);
@@ -165,8 +164,8 @@ namespace 窗格
             var themeHeading = new Label
             {
                 AutoSize = true,
-                Font = FluentTheme.BoldBodyFont,
-                Margin = new Padding(0, 0, 0, 10),
+                Font = FluentTheme.SectionHeadingFont,
+                Margin = new Padding(0, 0, 0, 14),
                 Text = UiText.Get("Theme")
             };
             useSystemTheme = new CheckBox
@@ -179,27 +178,27 @@ namespace 窗格
             var manualThemeLayout = new CardFaceTableLayoutPanel
             {
                 AutoSize = true,
-                ColumnCount = 4,
+                ColumnCount = 2,
                 Dock = DockStyle.Top,
                 Margin = new Padding(24, 0, 0, 0),
-                RowCount = 1
+                RowCount = 2
             };
             manualThemeLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            manualThemeLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            manualThemeLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            manualThemeLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            manualThemeLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            manualThemeLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            manualThemeLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             var modeLabel = new Label
             {
                 Anchor = AnchorStyles.Left,
                 AutoSize = true,
-                Margin = new Padding(0, 4, 8, 0),
+                Margin = new Padding(0, 0, 12, 8),
                 Text = UiText.Get("Display mode")
             };
             displayMode = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Dock = DockStyle.Fill,
-                Margin = new Padding(0, 0, 16, 0)
+                Margin = new Padding(0, 0, 0, 8)
             };
             displayMode.Items.AddRange(new object[] { UiText.Get("Light"), UiText.Get("Dark") });
             displayMode.SelectedIndex = GlobalFenceSettings.IsDisplayModeDark(GlobalFenceSettings.DisplayMode) ? 1 : 0;
@@ -207,7 +206,7 @@ namespace 窗格
             {
                 Anchor = AnchorStyles.Left,
                 AutoSize = true,
-                Margin = new Padding(0, 4, 8, 0),
+                Margin = new Padding(0, 0, 12, 0),
                 Text = UiText.Get("Theme color")
             };
             customAccentColor = GlobalFenceSettings.CustomAccentColor;
@@ -222,8 +221,8 @@ namespace 窗格
             accentColorButton.Click += AccentColorButton_Click;
             manualThemeLayout.Controls.Add(modeLabel, 0, 0);
             manualThemeLayout.Controls.Add(displayMode, 1, 0);
-            manualThemeLayout.Controls.Add(accentLabel, 2, 0);
-            manualThemeLayout.Controls.Add(accentColorButton, 3, 0);
+            manualThemeLayout.Controls.Add(accentLabel, 0, 1);
+            manualThemeLayout.Controls.Add(accentColorButton, 1, 1);
             themeLayout.Controls.Add(themeHeading, 0, 0);
             themeLayout.Controls.Add(useSystemTheme, 0, 1);
             themeLayout.Controls.Add(manualThemeLayout, 0, 2);
@@ -231,8 +230,8 @@ namespace 窗格
             var overlayHeading = new Label
             {
                 AutoSize = true,
-                Font = FluentTheme.BoldBodyFont,
-                Margin = new Padding(0, 16, 0, 8),
+                Font = FluentTheme.SectionHeadingFont,
+                Margin = new Padding(0, 18, 0, 10),
                 Text = UiText.Get("Overlay intensity")
             };
             var darkOverlayRow = new CardFaceTableLayoutPanel
@@ -306,8 +305,8 @@ namespace 窗格
             var glowHeading = new Label
             {
                 AutoSize = true,
-                Font = FluentTheme.BoldBodyFont,
-                Margin = new Padding(0, 0, 0, 10),
+                Font = FluentTheme.SectionHeadingFont,
+                Margin = new Padding(0, 0, 0, 14),
                 Text = UiText.Get("Glow effects")
             };
             glowEffectsEnabled = new CheckBox
@@ -393,17 +392,16 @@ namespace 窗格
             var storageCard = new FenceStorageSettingsControl();
             storageCard.OpenFolderRequested += OpenFolderButton_Click;
 
-            var fitActions = new GlassFlowLayoutPanel
+            var fitCard = new SettingsSectionControl();
+            var fitActions = new CardFaceFlowLayoutPanel
             {
                 AutoSize = true,
-                BackColor = FluentTheme.Surface,
                 Dock = DockStyle.Top,
                 FlowDirection = FlowDirection.LeftToRight,
-                Margin = new Padding(0, 0, 0, 12),
-                Padding = new Padding(16),
+                Margin = new Padding(0),
                 WrapContents = true
             };
-            var fitDescription = new Label
+            fitDescription = new Label
             {
                 AutoSize = true,
                 Anchor = AnchorStyles.Left,
@@ -421,6 +419,7 @@ namespace 窗格
             modifyAllButton.Click += ModifyAllButton_Click;
             fitActions.Controls.Add(fitDescription);
             fitActions.Controls.Add(modifyAllButton);
+            fitCard.Controls.Add(fitActions);
 
             var settingActions = new GlassFlowLayoutPanel
             {
@@ -515,7 +514,7 @@ namespace 窗格
             contentLayout.Controls.Add(contentScaleSettings, 0, 3);
             contentLayout.Controls.Add(startupSettings, 0, 4);
             contentLayout.Controls.Add(storageCard, 0, 5);
-            contentLayout.Controls.Add(fitActions, 0, 6);
+            contentLayout.Controls.Add(fitCard, 0, 6);
             contentLayout.SizeChanged += ContentLayout_SizeChanged;
             var settingsLayout = new GlassTableLayoutPanel
             {
@@ -533,7 +532,6 @@ namespace 窗格
             settingsLayout.Controls.Add(footer, 0, 2);
             Controls.Add(settingsLayout);
             Controls.Add(titleBar);
-            fitActions.Tag = "FluentSurface";
             notice.Tag = "FluentSecondaryText";
             FluentTheme.ApplyToForm(this, applyButton);
             UpdatePointerGlowColorButton();
@@ -552,12 +550,13 @@ namespace 窗格
 
         protected override void OnPaintBackground(PaintEventArgs e)
         {
-            GlassSurface.Paint(e.Graphics, FluentTheme.Canvas);
+            GlassSurface.PaintBackdrop(e.Graphics, ClientRectangle, backdropBlurEnabled);
         }
 
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
+            backdropBlurEnabled = BlurUtil.EnableBlur(Handle);
             WindowUtil.ApplyDwmRoundedCorners(Handle);
             ApplyWindowBorder();
             if (titleBar != null)
@@ -646,7 +645,12 @@ namespace 窗格
 
             var graphics = e.Graphics;
             var bounds = new Rectangle(0, 0, titleBar.Width, titleBar.Height);
-            graphics.Clear(FluentTheme.Canvas);
+            var titleAlpha = GlobalFenceSettings.GetOverlayOpacity(36, 92);
+            using (var titleBrush = new SolidBrush(Color.FromArgb(titleAlpha,
+                FluentTheme.IsDark ? Color.Black : Color.White)))
+            {
+                graphics.FillRectangle(titleBrush, bounds);
+            }
 
             var textHeight = titleBar.Height - 1;
             var x = LogicalToDeviceUnits(24);
@@ -676,24 +680,6 @@ namespace 窗格
                 var half = LogicalToDeviceUnits(5);
                 graphics.DrawLine(glyphPen, centerX - half, centerY - half, centerX + half, centerY + half);
                 graphics.DrawLine(glyphPen, centerX - half, centerY + half, centerX + half, centerY - half);
-            }
-        }
-
-        private void ContentLayout_Paint(object sender, PaintEventArgs e)
-        {
-            var radius = LogicalToDeviceUnits(14);
-            foreach (Control control in contentLayout.Controls)
-            {
-                var card = control as SettingsSectionControl;
-                if (card == null || !card.Visible)
-                    continue;
-
-                var bounds = card.Bounds;
-                var shadow = new Rectangle(bounds.X, bounds.Y + LogicalToDeviceUnits(2),
-                    bounds.Width, bounds.Height);
-                using (var path = FenceRenderer.CreateRoundedRectangle(shadow, radius))
-                using (var brush = new SolidBrush(Color.FromArgb(18, Color.Black)))
-                    e.Graphics.FillPath(brush, path);
             }
         }
 
@@ -887,8 +873,11 @@ namespace 窗格
         private void ContentLayout_SizeChanged(object sender, EventArgs e)
         {
             var availableWidth = Math.Max(100, contentLayout.ClientSize.Width - contentLayout.Padding.Horizontal);
+            var cardContentWidth = Math.Max(100, availableWidth - fenceTitleSettings.Padding.Horizontal);
             notice.MaximumSize = new Size(availableWidth, 0);
-            fenceTitleSettings.SetAvailableWidth(availableWidth);
+            fitDescription.MaximumSize = new Size(cardContentWidth, 0);
+            fenceTitleSettings.SetAvailableWidth(cardContentWidth);
+            contentScaleSettings.SetAvailableWidth(cardContentWidth);
         }
 
         private void OpenFolderButton_Click(object sender, EventArgs e)

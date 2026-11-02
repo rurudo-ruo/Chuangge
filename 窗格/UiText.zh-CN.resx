@@ -5,6 +5,8 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <data name="Advanced settings"><value>高级设置</value></data>
+  <data name="Appearance and behavior"><value>外观与行为</value></data>
+  <data name="Changes apply to every fence."><value>更改将应用于所有围栏。</value></data>
   <data name="Appearance"><value>外观</value></data>
   <data name="These global appearance settings apply to all fences."><value>这些全局外观设置将应用于所有桌面分区。</value></data>
   <data name="Fence titles"><value>分区标题</value></data>

@@ -18,13 +18,12 @@ namespace 窗格
             contextMenu.Items.Add(UiText.Get("Advanced settings"), null, AdvancedSettings_Click);
             contextMenu.Items.Add(new ToolStripSeparator());
             contextMenu.Items.Add(UiText.Get("Exit"), null, Exit_Click);
-            contextMenu.RenderMode = ToolStripRenderMode.Professional;
-            contextMenu.Renderer = new FluentMenuRenderer();
-            contextMenu.Font = FluentTheme.BodyFont;
-            contextMenu.ForeColor = FluentTheme.Text;
-            foreach (ToolStripItem item in contextMenu.Items)
-                item.Padding = new Padding(10, 5, 10, 5);
-            contextMenu.Opening += (sender, e) => UpdateMenuTheme();
+            FluentMenuRenderer.Configure(contextMenu);
+            contextMenu.Opening += (sender, e) =>
+            {
+                UpdateMenuTheme();
+                ((FluentMenuRenderer)contextMenu.Renderer).PrepareBackdrop(contextMenu);
+            };
             contextMenu.Opened += (sender, e) => WindowUtil.ApplyRoundedCorners(
                 contextMenu.Handle, contextMenu.Width, contextMenu.Height,
                 contextMenu.DeviceDpi * 8 / 96);

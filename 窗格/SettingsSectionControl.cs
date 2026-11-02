@@ -11,13 +11,15 @@ namespace 窗格
         public SettingsSectionControl()
         {
             AutoSize = true;
+            BackColor = Color.Transparent;
             Dock = DockStyle.Top;
             Margin = new Padding(0, 0, 0, 14);
             Padding = new Padding(20);
             SetStyle(ControlStyles.AllPaintingInWmPaint
                 | ControlStyles.UserPaint
+                | ControlStyles.OptimizedDoubleBuffer
+                | ControlStyles.ResizeRedraw
                 | ControlStyles.SupportsTransparentBackColor, true);
-            BackColor = Color.Transparent;
         }
 
         protected override void OnPaintBackground(PaintEventArgs e)
@@ -26,16 +28,24 @@ namespace 窗格
 
             var graphics = e.Graphics;
             graphics.SmoothingMode = SmoothingMode.AntiAlias;
-
             var radius = LogicalToDeviceUnits(CornerRadius);
-            var bounds = new Rectangle(0, 0, Width - 1, Height - 1);
+            var bounds = new Rectangle(0, 0, Width - 1, Height - LogicalToDeviceUnits(2));
+            if (bounds.Width < 4 || bounds.Height < 4)
+                return;
+
+            var shadowBounds = bounds;
+            shadowBounds.Offset(0, LogicalToDeviceUnits(2));
+            using (var shadowPath = FenceRenderer.CreateRoundedRectangle(shadowBounds, radius))
+            using (var shadowBrush = new SolidBrush(Color.FromArgb(22, Color.Black)))
+                graphics.FillPath(shadowBrush, shadowPath);
+
             using (var path = FenceRenderer.CreateRoundedRectangle(bounds, radius))
-            using (var brush = new SolidBrush(FluentTheme.CardSurface))
-            using (var border = new Pen(FluentTheme.CardBorder))
+            using (var brush = new SolidBrush(FluentTheme.GlassCardSurface))
             {
                 graphics.FillPath(brush, path);
-                graphics.DrawPath(border, path);
             }
+
+            GlassPainter.Paint(graphics, bounds, radius);
         }
     }
 }

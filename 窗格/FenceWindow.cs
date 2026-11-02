@@ -50,6 +50,7 @@ namespace 窗格
         private int prevHeight;
         private Point pointerPosition;
         private bool pointerInside;
+        private bool backdropBlurEnabled;
         private Point glowPosition;
         private bool glowVisible;
         private int lastGlowUpdateTicks;
@@ -104,15 +105,9 @@ namespace 窗格
             debouncedMove = new DebouncedAction(TimeSpan.FromMilliseconds(500), ShowDeferredSaveError);
             debouncedResize = new DebouncedAction(TimeSpan.FromMilliseconds(500), ShowDeferredSaveError);
             InitializeComponent();
-            appContextMenu.RenderMode = ToolStripRenderMode.Professional;
-            appContextMenu.Renderer = new FluentMenuRenderer();
-            appContextMenu.Font = FluentTheme.BodyFont;
-            appContextMenu.ForeColor = FluentTheme.Text;
-            foreach (ToolStripItem item in appContextMenu.Items)
-                item.Padding = new Padding(10, 5, 10, 5);
             appContextMenu.Opened += AppContextMenu_Opened;
             DropShadow.ApplyShadows(this);
-            BlurUtil.EnableBlur(Handle);
+            backdropBlurEnabled = BlurUtil.EnableBlur(Handle);
             WindowUtil.HideFromAltTab(Handle);
             DesktopUtil.GlueToDesktop(Handle);
             //DesktopUtil.PreventMinimize(Handle);
@@ -151,6 +146,8 @@ namespace 窗格
             appContextMenu.Items.Insert(1, locateMissingFolderItem);
             appContextMenu.Items.Insert(2, openMissingParentItem);
             appContextMenu.Items.Insert(3, missingItemSeparator);
+            appContextMenu.Items.Insert(5, new ToolStripSeparator());
+            FluentMenuRenderer.Configure(appContextMenu);
             locateMissingFileItem.Click += LocateMissingFileItem_Click;
             locateMissingFolderItem.Click += LocateMissingFolderItem_Click;
             openMissingParentItem.Click += OpenMissingParentItem_Click;
@@ -362,6 +359,7 @@ namespace 窗格
         private void contextMenuStrip1_Opening(object sender, System.ComponentModel.CancelEventArgs e)
         {
             UpdateAppMenuTheme();
+            ((FluentMenuRenderer)appContextMenu.Renderer).PrepareBackdrop(appContextMenu);
             var missingItem = hoveringItem != null && !ItemExists(hoveringItem);
             locateMissingFileItem.Visible = missingItem;
             locateMissingFolderItem.Visible = missingItem;
@@ -611,10 +609,13 @@ namespace 窗格
             var backgroundAlpha = GlobalFenceSettings.GetOverlayOpacity(92, 174);
             var titleAlpha = GlobalFenceSettings.GetOverlayOpacity(36, 92);
 
-            using (var backgroundBrush = new SolidBrush(Color.FromArgb(backgroundAlpha,
-                FluentTheme.IsDark ? Color.Black : Color.White)))
-            using (var titleBrush = new SolidBrush(Color.FromArgb(titleAlpha,
-                FluentTheme.IsDark ? Color.Black : Color.White)))
+            var tint = FluentTheme.IsDark ? Color.Black : Color.White;
+            using (var backgroundBrush = new SolidBrush(backdropBlurEnabled
+                ? Color.FromArgb(backgroundAlpha, tint)
+                : FluentTheme.Canvas))
+            using (var titleBrush = new SolidBrush(backdropBlurEnabled
+                ? Color.FromArgb(titleAlpha, tint)
+                : FluentTheme.Surface))
             using (var titleFormat = new StringFormat
             {
                 Alignment = StringAlignment.Near,

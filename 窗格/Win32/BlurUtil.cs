@@ -41,24 +41,31 @@ namespace 窗格.Win32
         [DllImport("user32.dll")]
         public static extern int SetWindowCompositionAttribute(IntPtr hwnd, ref WindowCompositionAttributeData data);
 
-        public static void EnableBlur(IntPtr hwnd)
+        public static bool EnableBlur(IntPtr hwnd)
         {
+            if (hwnd == IntPtr.Zero)
+                return false;
+
             var accent = new AccentPolicy();
             accent.AccentState = AccentState.ACCENT_ENABLE_BLURBEHIND;
 
             var accentStructSize = Marshal.SizeOf(accent);
-
             var accentPtr = Marshal.AllocHGlobal(accentStructSize);
-            Marshal.StructureToPtr(accent, accentPtr, false);
+            try
+            {
+                Marshal.StructureToPtr(accent, accentPtr, false);
 
-            var data = new WindowCompositionAttributeData();
-            data.Attribute = WindowCompositionAttribute.WCA_ACCENT_POLICY;
-            data.SizeOfData = accentStructSize;
-            data.Data = accentPtr;
+                var data = new WindowCompositionAttributeData();
+                data.Attribute = WindowCompositionAttribute.WCA_ACCENT_POLICY;
+                data.SizeOfData = accentStructSize;
+                data.Data = accentPtr;
 
-            SetWindowCompositionAttribute(hwnd, ref data);
-
-            Marshal.FreeHGlobal(accentPtr);
+                return SetWindowCompositionAttribute(hwnd, ref data) != 0;
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(accentPtr);
+            }
         }
     }
 }

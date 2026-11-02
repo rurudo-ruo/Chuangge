@@ -65,6 +65,7 @@ namespace 窗格
         public void SetAvailableWidth(int width)
         {
             titleSizeHint.MaximumSize = new Size(width, 0);
+            hideTitles.MaximumSize = new Size(width, 0);
         }
 
         private static TableLayoutPanel CreateLayout(int columns, int rows)
@@ -90,7 +91,7 @@ namespace 窗格
             return new Label
             {
                 AutoSize = true,
-                Font = FluentTheme.BoldBodyFont,
+                Font = FluentTheme.SectionHeadingFont,
                 Margin = new Padding(0, 0, 0, 12),
                 Text = UiText.Get(text)
             };
@@ -101,6 +102,7 @@ namespace 窗格
     {
         private readonly TrackBar scale;
         private readonly Label valueLabel;
+        private readonly Label scaleHint;
 
         public int ScalePercent => scale.Value;
 
@@ -158,8 +160,14 @@ namespace 窗格
             row.Controls.Add(scale, 1, 0);
             row.Controls.Add(valueLabel, 2, 0);
             layout.Controls.Add(row, 0, 1);
-            layout.Controls.Add(CreateHint(UiText.Get("Scales thumbnails, labels, and spacing independently of Windows display scaling. Existing fence dimensions stay unchanged; use Modify all to resize them.")), 0, 2);
+            scaleHint = CreateHint(UiText.Get("Scales thumbnails, labels, and spacing independently of Windows display scaling. Existing fence dimensions stay unchanged; use Modify all to resize them."));
+            layout.Controls.Add(scaleHint, 0, 2);
             Controls.Add(layout);
+        }
+
+        public void SetAvailableWidth(int width)
+        {
+            scaleHint.MaximumSize = new Size(width, 0);
         }
 
         private static Label CreateHeading(string text)
@@ -167,7 +175,7 @@ namespace 窗格
             return new Label
             {
                 AutoSize = true,
-                Font = FluentTheme.BoldBodyFont,
+                Font = FluentTheme.SectionHeadingFont,
                 Margin = new Padding(0, 0, 0, 8),
                 Text = text
             };
@@ -259,7 +267,7 @@ namespace 窗格
             layout.Controls.Add(new Label
             {
                 AutoSize = true,
-                Font = FluentTheme.BoldBodyFont,
+                Font = FluentTheme.SectionHeadingFont,
                 Margin = new Padding(0, 0, 0, 8),
                 Text = UiText.Get("Fence data folder:")
             }, 0, 0);

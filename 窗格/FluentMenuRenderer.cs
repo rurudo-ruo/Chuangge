@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
+using 窗格.Win32;
 
 namespace 窗格
 {
@@ -12,13 +14,19 @@ namespace 窗格
     /// </summary>
     internal sealed class FluentMenuColorTable : ProfessionalColorTable
     {
-        public override Color ToolStripDropDownBackground => FluentTheme.PopoverSurface;
+        public bool BackdropBlurEnabled { get; set; }
 
-        public override Color ImageMarginGradientBegin => FluentTheme.PopoverSurface;
+        private Color Surface => BackdropBlurEnabled
+            ? FluentTheme.PopoverBlurSurface
+            : FluentTheme.PopoverSurface;
 
-        public override Color ImageMarginGradientMiddle => FluentTheme.PopoverSurface;
+        public override Color ToolStripDropDownBackground => Surface;
 
-        public override Color ImageMarginGradientEnd => FluentTheme.PopoverSurface;
+        public override Color ImageMarginGradientBegin => Surface;
+
+        public override Color ImageMarginGradientMiddle => Surface;
+
+        public override Color ImageMarginGradientEnd => Surface;
 
         public override Color MenuBorder => FluentTheme.GlassEdge;
 
@@ -50,15 +58,71 @@ namespace 窗格
     /// </summary>
     internal sealed class FluentMenuRenderer : ToolStripProfessionalRenderer
     {
-        public FluentMenuRenderer()
-            : base(new FluentMenuColorTable())
+        private readonly FluentMenuColorTable colorTable;
+        private readonly Dictionary<IntPtr, bool> backdropBlurStates = new Dictionary<IntPtr, bool>();
+
+        public static void Configure(ContextMenuStrip toolStrip)
         {
+            if (toolStrip == null)
+                throw new ArgumentNullException(nameof(toolStrip));
+
+            toolStrip.RenderMode = ToolStripRenderMode.Professional;
+            toolStrip.Renderer = new FluentMenuRenderer();
+            toolStrip.Font = FluentTheme.BodyFont;
+            toolStrip.ForeColor = FluentTheme.Text;
+            toolStrip.Padding = new Padding(6);
+            toolStrip.ShowImageMargin = false;
+            toolStrip.ShowCheckMargin = true;
+
+            foreach (ToolStripItem item in toolStrip.Items)
+            {
+                var separator = item as ToolStripSeparator;
+                item.Padding = separator == null
+                    ? new Padding(12, 6, 12, 6)
+                    : Padding.Empty;
+                item.Margin = separator == null
+                    ? new Padding(2, 1, 2, 1)
+                    : new Padding(4, 3, 4, 3);
+            }
+        }
+
+        public FluentMenuRenderer()
+            : this(new FluentMenuColorTable())
+        {
+        }
+
+        private FluentMenuRenderer(FluentMenuColorTable colorTable)
+            : base(colorTable)
+        {
+            this.colorTable = colorTable;
             RoundedEdges = false;
+        }
+
+        public void PrepareBackdrop(ToolStrip toolStrip)
+        {
+            var handle = toolStrip.Handle;
+            bool blurEnabled;
+            if (!backdropBlurStates.TryGetValue(handle, out blurEnabled))
+            {
+                blurEnabled = BlurUtil.EnableBlur(handle);
+                backdropBlurStates.Add(handle, blurEnabled);
+            }
+
+            colorTable.BackdropBlurEnabled = blurEnabled;
         }
 
         protected override void OnRenderToolStripBackground(ToolStripRenderEventArgs e)
         {
-            using (var brush = new SolidBrush(FluentTheme.PopoverSurface))
+            bool blurEnabled;
+            if (!backdropBlurStates.TryGetValue(e.ToolStrip.Handle, out blurEnabled))
+            {
+                PrepareBackdrop(e.ToolStrip);
+                blurEnabled = backdropBlurStates[e.ToolStrip.Handle];
+            }
+
+            colorTable.BackdropBlurEnabled = blurEnabled;
+            var surface = blurEnabled ? FluentTheme.PopoverBlurSurface : FluentTheme.PopoverSurface;
+            using (var brush = new SolidBrush(surface))
                 e.Graphics.FillRectangle(brush, e.AffectedBounds);
 
             var radius = Math.Max(4, e.ToolStrip.DeviceDpi * 8 / 96);
@@ -70,13 +134,33 @@ namespace 窗格
             // The edge hairline is drawn by the glass finish; a second border would double it.
         }
 
+        protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e)
+        {
+            if (e.Vertical)
+            {
+                base.OnRenderSeparator(e);
+                return;
+            }
+
+            var bounds = new Rectangle(0, 0, e.Item.Width, e.Item.Height);
+            var inset = Math.Max(12, e.ToolStrip.DeviceDpi * 12 / 96);
+            var left = bounds.Left + inset;
+            var right = bounds.Right - inset;
+            if (right <= left)
+                return;
+
+            var y = bounds.Top + bounds.Height / 2;
+            using (var pen = new Pen(Color.FromArgb(FluentTheme.IsDark ? 56 : 38, FluentTheme.Text)))
+                e.Graphics.DrawLine(pen, left, y, right, y);
+        }
+
         protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
         {
             if (!e.Item.Selected || !e.Item.Enabled)
                 return;
 
-            var bounds = new Rectangle(2, 0, Math.Max(1, e.Item.Width - 4), e.Item.Height - 1);
-            var radius = Math.Max(3, e.ToolStrip.DeviceDpi * 4 / 96);
+            var bounds = new Rectangle(3, 0, Math.Max(1, e.Item.Width - 6), e.Item.Height - 1);
+            var radius = Math.Max(4, e.ToolStrip.DeviceDpi * 5 / 96);
             using (var path = FenceRenderer.CreateRoundedRectangle(bounds, radius))
             using (var brush = new SolidBrush(FluentTheme.GlassState))
             using (var edgePen = new Pen(FluentTheme.GlassEdge))

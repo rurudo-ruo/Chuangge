@@ -8,8 +8,7 @@ namespace 窗格
     /// <summary>
     /// Paints the glass material in three light layers — a sheen across the top of the face, an
     /// inner shadow along the bottom, and the highlight at the edge — then a faint tiled grain over
-    /// all of it. Used above the blur on fences, above the fill on cards and menus, and on the
-    /// settings window background.
+    /// all of it. Used above the backdrop blur on fences and menus.
     /// </summary>
     internal static class GlassPainter
     {

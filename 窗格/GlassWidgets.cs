@@ -76,11 +76,16 @@ namespace 窗格
             var bounds = new Rectangle(0, 0, Width - 1, Height - 1);
             var radius = Math.Max(3, LogicalToDeviceUnits(9));
 
-            if (Parent is GlassPanel || Parent is GlassTableLayoutPanel || Parent is GlassFlowLayoutPanel)
+            if (Parent is GlassPanel || Parent is GlassTableLayoutPanel || Parent is GlassFlowLayoutPanel
+                || Parent is CardFaceTableLayoutPanel || Parent is CardFaceFlowLayoutPanel)
             {
-                // The button sits on the translucent glass: repaint the same tint behind its
-                // rounded corners instead of the opaque BackColor.
-                GlassSurface.Paint(graphics, Parent.BackColor);
+                var parentColor = Parent.BackColor;
+                if (parentColor.A == 0)
+                    parentColor = Parent is CardFaceTableLayoutPanel || Parent is CardFaceFlowLayoutPanel
+                        ? FluentTheme.CardSurface
+                        : FluentTheme.Canvas;
+
+                graphics.Clear(parentColor);
             }
             else
             {
