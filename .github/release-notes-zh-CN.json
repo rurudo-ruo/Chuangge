@@ -20,6 +20,8 @@
     "Implement item index retrieval and visibility range calculation in FenceLayout; enhance thumbnail icon handling in FenceEntry and ThumbnailProvider": "在 FenceLayout 中实现项目索引检索和可见范围计算；改进 FenceEntry 和 ThumbnailProvider 的缩略图图标处理",
     "Refactor Fence Management and UI Components": "重构桌面分区管理和界面组件",
     "Refactor UI text handling to use resource files for localization": "重构界面文本处理，使用资源文件实现本地化",
-    "Fix Windows PowerShell encoding in bilingual release notes": "修复 Windows PowerShell 生成双语发布说明时的编码问题"
+    "Fix Windows PowerShell encoding in bilingual release notes": "修复 Windows PowerShell 生成双语发布说明时的编码问题",
+    "Enhance UI with Backdrop Blur and Refined Appearance Settings": "添加背景模糊效果并优化外观设置界面",
+    "feat: Enhance tray icon context menu with Fluent design": "优化托盘图标上下文菜单，采用 Fluent 设计"
   }
 }
